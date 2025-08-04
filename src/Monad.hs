@@ -78,7 +78,7 @@ provideCommand iotcm = do
   controller <- asks envCommandController
   liftIO $ CommandController.put controller iotcm
 
--- | Consumter
+-- | Consumer
 consumeCommand :: (Monad m, MonadIO m) => Env -> m IOTCM
 consumeCommand env = liftIO $ CommandController.take (envCommandController env)
 
