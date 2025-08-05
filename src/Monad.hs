@@ -28,6 +28,9 @@ import Language.LSP.Server
 import Options
 import Server.CommandController (CommandController)
 import qualified Server.CommandController as CommandController
+import Server.Model (Model)
+import qualified Server.Model as Model
+import Server.Model.AgdaLib (AgdaLib)
 import Server.ResponseController (ResponseController)
 import qualified Server.ResponseController as ResponseController
 
@@ -40,7 +43,8 @@ data Env = Env
     envLogChan :: Chan Text,
     envCommandController :: CommandController,
     envResponseChan :: Chan Response,
-    envResponseController :: ResponseController
+    envResponseController :: ResponseController,
+    envModel :: !(IORef Model)
   }
 
 createInitEnv :: (MonadIO m, MonadLsp Config m) => Options -> m Env
@@ -51,6 +55,7 @@ createInitEnv options =
     <*> liftIO CommandController.new
     <*> liftIO newChan
     <*> liftIO ResponseController.new
+    <*> liftIO (newIORef Model.empty)
 
 --------------------------------------------------------------------------------
 
