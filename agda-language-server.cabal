@@ -47,6 +47,7 @@ library
       Agda.Parser
       Agda.Position
       Control.Concurrent.SizedChan
+      Language.LSP.Protocol.Types.Uri.More
       Monad
       Options
       Render
@@ -64,6 +65,10 @@ library
       Server
       Server.CommandController
       Server.Handler
+      Server.Model
+      Server.Model.AgdaFile
+      Server.Model.AgdaLib
+      Server.Model.Symbol
       Server.ResponseController
       Switchboard
   other-modules:
@@ -164,6 +169,7 @@ test-suite als-test
       Agda.Parser
       Agda.Position
       Control.Concurrent.SizedChan
+      Language.LSP.Protocol.Types.Uri.More
       Monad
       Options
       Render
@@ -181,6 +187,10 @@ test-suite als-test
       Server
       Server.CommandController
       Server.Handler
+      Server.Model
+      Server.Model.AgdaFile
+      Server.Model.AgdaLib
+      Server.Model.Symbol
       Server.ResponseController
       Switchboard
       Paths_agda_language_server
