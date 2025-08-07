@@ -3,6 +3,7 @@
 
 module Options
   ( Options (..),
+    defaultOptions,
     getOptionsFromArgv,
     versionNumber,
     versionString,

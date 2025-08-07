@@ -81,7 +81,7 @@ run options = do
         }
 
 lspOptions :: LSP.Options
-lspOptions = defaultOptions {optTextDocumentSync = Just syncOptions}
+lspOptions = LSP.defaultOptions {optTextDocumentSync = Just syncOptions}
 
 -- these `TextDocumentSyncOptions` are essential for receiving notifications from the client
 -- syncOptions :: TextDocumentSyncOptions
