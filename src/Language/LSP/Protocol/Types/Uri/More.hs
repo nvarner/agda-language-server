@@ -1,4 +1,8 @@
-module Language.LSP.Protocol.Types.Uri.More (isUriAncestorOf) where
+module Language.LSP.Protocol.Types.Uri.More
+  ( getNormalizedUri,
+    isUriAncestorOf,
+  )
+where
 
 import Data.Text (Text)
 import qualified Data.Text as Text

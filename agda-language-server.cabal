@@ -65,6 +65,8 @@ library
       Server
       Server.CommandController
       Server.Handler
+      Server.Handler.Monad
+      Server.Handler.TextDocument.DocumentSymbol
       Server.Model
       Server.Model.AgdaFile
       Server.Model.AgdaLib
@@ -160,9 +162,12 @@ test-suite als-test
   type: exitcode-stdio-1.0
   main-is: Test.hs
   other-modules:
+      Test.HandlerMonad
       Test.LSP
+      Test.Model
       Test.SrcLoc
       Test.WASM
+      TestData
       Agda
       Agda.Convert
       Agda.IR
@@ -187,6 +192,8 @@ test-suite als-test
       Server
       Server.CommandController
       Server.Handler
+      Server.Handler.Monad
+      Server.Handler.TextDocument.DocumentSymbol
       Server.Model
       Server.Model.AgdaFile
       Server.Model.AgdaLib

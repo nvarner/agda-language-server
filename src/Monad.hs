@@ -1,11 +1,13 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Monad where
 
 import Agda.IR
 import Agda.Interaction.Base (IOTCM)
 import Agda.TypeChecking.Monad (TCMT)
+import Agda.Utils.Lens (Lens', (^.))
 import Control.Concurrent
 import Control.Monad.Reader
 import Data.IORef
@@ -76,6 +78,11 @@ writeLog' :: (Monad m, MonadIO m, Show a) => a -> ServerM m ()
 writeLog' x = do
   chan <- asks envLogChan
   liftIO $ writeChan chan $ pack $ show x
+
+askModel :: (MonadIO m) => ServerM m Model
+askModel = do
+  modelVar <- asks envModel
+  liftIO $ readIORef modelVar
 
 -- | Provider
 provideCommand :: (Monad m, MonadIO m) => IOTCM -> ServerM m ()

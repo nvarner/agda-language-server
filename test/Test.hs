@@ -9,6 +9,8 @@ import qualified Test.WASM as WASM
 #endif
 import Test.Tasty
 import Test.Tasty.Options
+import qualified Test.Model as Model
+import qualified Test.HandlerMonad as HandlerMonad
 
 -- Define the custom option
 newtype AlsPathOption = AlsPathOption FilePath
@@ -31,7 +33,9 @@ tests = askOption $ \(AlsPathOption alsPath) ->
   testGroup
     "Tests"
     [ SrcLoc.tests,
-      LSP.tests alsPath
+      LSP.tests alsPath,
+      Model.tests,
+      HandlerMonad.tests
 #if defined(wasm32_HOST_ARCH)
     , WASM.tests alsPath
 #endif
