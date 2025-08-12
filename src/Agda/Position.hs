@@ -10,8 +10,8 @@ module Agda.Position
     toAgdaPositionWithoutFile,
     toAgdaRange,
     prettyPositionWithoutFile,
-    -- , toLSPRange
-    -- , toLSPPosition
+    toLspRange,
+    toLspPosition,
   )
 where
 
@@ -58,6 +58,20 @@ toAgdaPositionWithoutFile table (LSP.Position line col) =
 prettyPositionWithoutFile :: PositionWithoutFile -> String
 prettyPositionWithoutFile pos@(Pn () offset _line _col) =
   "[" <> show pos <> "-" <> show offset <> "]"
+
+--------------------------------------------------------------------------------
+
+-- | Agda source locations => LSP source locations
+
+-- | Agda Range -> LSP Range
+toLspRange :: Range -> LSP.Range
+toLspRange range = case rangeToIntervalWithFile range of
+  Nothing -> LSP.Range (LSP.Position (-1) (-1)) (LSP.Position (-1) (-1))
+  Just (Interval start end) -> LSP.Range (toLspPosition start) (toLspPosition end)
+
+-- | Agda Position -> LSP Position
+toLspPosition :: Position -> LSP.Position
+toLspPosition (Pn _ offset line col) = LSP.Position (fromIntegral line - 1) (fromIntegral col - 1)
 
 --------------------------------------------------------------------------------
 
@@ -139,14 +153,3 @@ makeFromOffset =
     go (Accum previous n l table) '\r' =
       Accum (Just '\r') (1 + n) (1 + l) (IntMap.insert (1 + n) (1 + l) table)
     go (Accum previous n l table) char = Accum (Just char) (1 + n) l table
-
--- --------------------------------------------------------------------------------
--- -- | Agda Highlighting Range -> Agda Range
-
--- fromAgdaHighlightingRangeToLSPRange :: Range -> LSP.Range
--- fromAgdaHighlightingRangeToLSPRange range = case rangeToIntervalWithFile range of
---   Nothing -> LSP.Range (LSP.Position (-1) (-1)) (LSP.Position (-1) (-1))
---   Just (Interval start end) -> LSP.Range (toLSPPosition start) (toLSPPosition end)
-
--- toLSPPosition :: Position -> LSP.Position
--- toLSPPosition (Pn _ offset line col) = LSP.Position (fromIntegral line - 1) (fromIntegral col - 1)
