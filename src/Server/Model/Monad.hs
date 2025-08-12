@@ -1,16 +1,20 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
-module Server.Handler.Monad
+module Server.Model.Monad
   ( MonadAgdaLib (..),
     useAgdaLib,
     MonadAgdaFile (..),
     useAgdaFile,
     withAgdaFile,
+    WithAgdaLibM,
+    withAgdaLibFor,
   )
 where
 
@@ -20,7 +24,7 @@ import Agda.Utils.IORef (modifyIORef', readIORef, writeIORef)
 import Agda.Utils.Lens (Lens', locally, over, use, view, (<&>), (^.))
 import Agda.Utils.Monad (bracket_)
 import Control.Monad.IO.Class (MonadIO (liftIO))
-import Control.Monad.Reader (MonadReader (local), ReaderT (runReaderT), asks)
+import Control.Monad.Reader (MonadReader (local), ReaderT (runReaderT), ask, asks)
 import Control.Monad.Trans (MonadTrans, lift)
 import qualified Language.LSP.Protocol.Lens as LSP
 import qualified Language.LSP.Protocol.Message as LSP
@@ -97,6 +101,47 @@ defaultLiftTCM (TCM f) = do
   tcStateRef <- useAgdaLib agdaLibTcStateRef
   tcEnv <- useAgdaLib agdaLibTcEnv
   liftIO $ f tcStateRef tcEnv
+
+--------------------------------------------------------------------------------
+
+newtype WithAgdaLibT m a = WithAgdaLibT {unWithAgdaLibT :: ReaderT AgdaLib m a}
+  deriving (Functor, Applicative, Monad, MonadIO, MonadTrans)
+
+runWithAgdaLibT :: AgdaLib -> WithAgdaLibT m a -> m a
+runWithAgdaLibT agdaLib = flip runReaderT agdaLib . unWithAgdaLibT
+
+type WithAgdaLibM = WithAgdaLibT (ServerM (LspM Config))
+
+withAgdaLibFor :: LSP.Uri -> WithAgdaLibM a -> ServerM (LspM Config) a
+withAgdaLibFor uri x = do
+  let normUri = LSP.toNormalizedUri uri
+  model <- askModel
+  agdaLib <- Model.getAgdaLib normUri model
+  runWithAgdaLibT agdaLib x
+
+instance (MonadIO m) => MonadAgdaLib (WithAgdaLibT m) where
+  askAgdaLib = WithAgdaLibT ask
+  localAgdaLib f = WithAgdaLibT . local f . unWithAgdaLibT
+
+instance (MonadIO m) => MonadTCEnv (WithAgdaLibT m) where
+  askTC = defaultAskTC
+  localTC = defaultLocalTC
+
+instance (MonadIO m) => MonadTCState (WithAgdaLibT m) where
+  getTC = defaultGetTC
+  putTC = defaultPutTC
+  modifyTC = defaultModifyTC
+
+instance (MonadIO m) => ReadTCState (WithAgdaLibT m) where
+  getTCState = defaultGetTC
+  locallyTCState = defaultLocallyTCState
+
+instance (MonadIO m) => HasOptions (WithAgdaLibT m) where
+  pragmaOptions = defaultPragmaOptionsImpl
+  commandLineOptions = defaultCommandLineOptionsImpl
+
+instance (MonadIO m) => MonadTCM (WithAgdaLibT m) where
+  liftTCM = defaultLiftTCM
 
 --------------------------------------------------------------------------------
 

@@ -7,16 +7,24 @@ module TestData
     fileUri2,
     fileUri3,
     fakeUri,
+    getServerEnv,
   )
 where
 
+import Agda.Utils.IORef (newIORef)
 import Agda.Utils.Lens (set, (<&>))
+import Control.Concurrent (newChan)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import qualified Data.Map as Map
 import qualified Language.LSP.Protocol.Message as LSP
 import qualified Language.LSP.Protocol.Types as LSP
+import Monad (Env (Env))
+import Options (defaultOptions, initConfig)
+import qualified Server.CommandController as CommandController
 import Server.Model (Model (Model))
 import Server.Model.AgdaFile (emptyAgdaFile)
 import Server.Model.AgdaLib (agdaLibIncludes, initAgdaLib)
+import qualified Server.ResponseController as ResponseController
 
 documentSymbolMessage :: LSP.NormalizedUri -> LSP.TRequestMessage LSP.Method_TextDocumentDocumentSymbol
 documentSymbolMessage uri =
@@ -78,3 +86,14 @@ getModel = do
           ]
 
   return $ Model libs files
+
+--------------------------------------------------------------------------------
+
+getServerEnv :: (MonadIO m) => Model -> m Env
+getServerEnv model =
+  Env defaultOptions True initConfig
+    <$> liftIO newChan
+    <*> liftIO CommandController.new
+    <*> liftIO newChan
+    <*> liftIO ResponseController.new
+    <*> liftIO (newIORef model)

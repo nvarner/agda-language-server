@@ -3,8 +3,9 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE RankNTypes #-}
 
-module Test.HandlerMonad (tests) where
+module Test.ModelMonad (tests) where
 
+import qualified Agda.Compiler.Backend as TestData
 import Agda.Utils.Either (isLeft, isRight)
 import Agda.Utils.IORef (newIORef, readIORef, writeIORef)
 import Agda.Utils.Lens ((^.))
@@ -18,9 +19,9 @@ import qualified Language.LSP.Server as LSP
 import Monad (Env (Env, envModel), ServerM, createInitEnv, runServerM)
 import Options (Config, defaultOptions, initConfig)
 import qualified Server.CommandController as CommandController
-import Server.Handler.Monad (MonadAgdaLib (askAgdaLib), withAgdaFile)
 import Server.Model (Model)
 import Server.Model.AgdaLib (agdaLibIncludes)
+import Server.Model.Monad (MonadAgdaLib (askAgdaLib), withAgdaFile)
 import qualified Server.ResponseController as ResponseController
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit (testCase, (@?), (@?=))
@@ -29,7 +30,7 @@ import qualified TestData
 tests :: TestTree
 tests =
   testGroup
-    "Handler monads"
+    "Model monads"
     [ testGroup
         "WithAgdaFileM"
         [ testCase "gets known Agda file" $ do
@@ -78,15 +79,8 @@ runHandler m request model handlers = do
   let Just (LSP.ClientMessageHandler handler) = SMethodMap.lookup m $ LSP.reqHandlers handlers
 
   LSP.runLspT undefined $ do
-    env <-
-      Env defaultOptions True initConfig
-        <$> liftIO newChan
-        <*> liftIO CommandController.new
-        <*> liftIO newChan
-        <*> liftIO ResponseController.new
-        <*> liftIO (newIORef model)
-    runServerM env $ do
-      handler request callback
+    env <- TestData.getServerEnv model
+    runServerM env $ handler request callback
 
   Just result <- readIORef resultRef
   return result

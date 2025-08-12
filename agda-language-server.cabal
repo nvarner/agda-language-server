@@ -49,10 +49,15 @@ library
   exposed-modules:
       Agda
       Agda.Convert
+      Agda.Interaction.Imports.More
       Agda.IR
       Agda.Parser
       Agda.Position
       Control.Concurrent.SizedChan
+      Indexer
+      Indexer.Indexer
+      Indexer.Monad
+      Language.LSP.Protocol.Types.More
       Language.LSP.Protocol.Types.Uri.More
       Monad
       Options
@@ -71,11 +76,10 @@ library
       Server
       Server.CommandController
       Server.Handler
-      Server.Handler.Monad
-      Server.Handler.TextDocument.DocumentSymbol
       Server.Model
       Server.Model.AgdaFile
       Server.Model.AgdaLib
+      Server.Model.Monad
       Server.Model.Symbol
       Server.ResponseController
       Switchboard
@@ -175,18 +179,25 @@ test-suite als-test
   type: exitcode-stdio-1.0
   main-is: Test.hs
   other-modules:
-      Test.HandlerMonad
+      Test.Indexer.Invariants
+      Test.Indexer.NoOverlap
       Test.LSP
       Test.Model
+      Test.ModelMonad
       Test.SrcLoc
       Test.WASM
       TestData
       Agda
       Agda.Convert
+      Agda.Interaction.Imports.More
       Agda.IR
       Agda.Parser
       Agda.Position
       Control.Concurrent.SizedChan
+      Indexer
+      Indexer.Indexer
+      Indexer.Monad
+      Language.LSP.Protocol.Types.More
       Language.LSP.Protocol.Types.Uri.More
       Monad
       Options
@@ -205,11 +216,10 @@ test-suite als-test
       Server
       Server.CommandController
       Server.Handler
-      Server.Handler.Monad
-      Server.Handler.TextDocument.DocumentSymbol
       Server.Model
       Server.Model.AgdaFile
       Server.Model.AgdaLib
+      Server.Model.Monad
       Server.Model.Symbol
       Server.ResponseController
       Switchboard
