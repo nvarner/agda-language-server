@@ -180,6 +180,7 @@ test-suite als-test
   main-is: Test.hs
   other-modules:
       Test.Indexer.Invariants
+      Test.Indexer.NoMissing
       Test.Indexer.NoOverlap
       Test.LSP
       Test.Model

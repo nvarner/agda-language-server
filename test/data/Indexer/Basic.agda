@@ -52,3 +52,24 @@ record World : Set where
 earth : World
 earth .World.north = test
 earth .World.south = test
+
+interleaved mutual
+  record MutualRecord (A : Set) : Set
+  data MutualData : Set
+  data MutualData' : Set
+  mutualFun : MutualRecord MutualData -> MutualRecord MutualData
+
+  record MutualRecord A where
+    constructor makeMutualRecord
+    field
+      mutFieldX : A
+    field mutFieldY : Nat
+
+  data MutualData where
+    mutCtorX : MutualData
+  
+  data _ where
+    mutCtorX' : MutualData'
+    mutCtorY : MutualData
+  
+  mutualFun = id

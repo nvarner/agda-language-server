@@ -1,7 +1,6 @@
 module Indexer (indexFile) where
 
-import Agda.Interaction.FindFile (SourceFile (SourceFile))
-import qualified Agda.Interaction.FindFile as Imp
+import Agda.Interaction.FindFile (SourceFile (SourceFile), srcFilePath)
 import qualified Agda.Interaction.Imports as Imp
 import qualified Agda.Interaction.Imports.More as Imp
 import Agda.Interaction.Library (getPrimitiveLibDir)
@@ -34,12 +33,12 @@ indexFile src = do
       -- Now reset the options
       TCM.setCommandLineOptions . TCM.stPersistentOptions . TCM.stPersistentState =<< TCM.getTC
 
-  TCM.modifyTCLens TCM.stModuleToSource $ Map.insert (Imp.srcModuleName src) (Imp.srcFilePath $ Imp.srcOrigin src)
+  TCM.modifyTCLens TCM.stModuleToSource $ Map.insert (Imp.srcModuleName src) (srcFilePath $ Imp.srcOrigin src)
 
-  TCM.localTC (\e -> e {TCM.envCurrentPath = Just (Imp.srcFilePath $ Imp.srcOrigin src)}) $ do
+  TCM.localTC (\e -> e {TCM.envCurrentPath = Just (srcFilePath $ Imp.srcOrigin src)}) $ do
     let topLevel =
           TopLevel
-            (Imp.srcFilePath $ Imp.srcOrigin src)
+            (srcFilePath $ Imp.srcOrigin src)
             (Imp.srcModuleName src)
             (C.modDecls $ Imp.srcModule src)
     ast <- TCM.liftTCM $ toAbstract topLevel
