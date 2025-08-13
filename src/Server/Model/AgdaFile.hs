@@ -9,7 +9,8 @@ module Server.Model.AgdaFile
 where
 
 import qualified Agda.Syntax.Abstract as A
-import Agda.Utils.Lens (Lens', over, (<&>))
+import Agda.Syntax.Common.Pretty (Pretty, pretty, prettyAssign, prettyMap, text, vcat)
+import Agda.Utils.Lens (Lens', over, (<&>), (^.))
 import Control.Monad (forM)
 import Data.Foldable (fold)
 import Data.Map (Map)
@@ -21,6 +22,13 @@ data AgdaFile = AgdaFile
   { _agdaFileSymbols :: !(Map A.QName SymbolInfo),
     _agdaFileRefs :: !(Map A.QName [Ref])
   }
+
+instance Pretty AgdaFile where
+  pretty agdaFile =
+    vcat
+      [ prettyAssign (text "symbols", prettyMap $ Map.toList $ agdaFile ^. agdaFileSymbols),
+        prettyAssign (text "refs", prettyMap $ Map.toList $ agdaFile ^. agdaFileRefs)
+      ]
 
 emptyAgdaFile :: AgdaFile
 emptyAgdaFile = AgdaFile Map.empty Map.empty
@@ -44,5 +52,3 @@ insertRef ambiguousName ref =
   over agdaFileRefs $
     appEndo $
       foldMap (\name -> Endo $ Map.insertWith (<>) name [ref]) (A.unAmbQ ambiguousName)
-
--- Map.insertWith (<>) name [ref]

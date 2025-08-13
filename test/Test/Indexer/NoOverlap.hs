@@ -1,3 +1,5 @@
+-- | Check that `Ref`s don't overlap, so that there is only one `Ref` instance
+-- per actual reference.
 module Test.Indexer.NoOverlap (testNoOverlap) where
 
 import qualified Agda.Syntax.Abstract as A
