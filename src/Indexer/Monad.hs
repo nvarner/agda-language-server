@@ -27,13 +27,14 @@ import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Common as C
 import Agda.Syntax.Position (HasRange, getRange)
 import Agda.Utils.IORef (IORef, modifyIORef', newIORef, readIORef)
-import Agda.Utils.Lens (over)
+import Agda.Utils.Lens (over, (^.))
 import Agda.Utils.List1 (List1, concatMap1)
 import Agda.Utils.Maybe (isNothing)
 import Control.Applicative ((<|>))
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader (MonadReader (local), ReaderT (runReaderT), asks)
 import Control.Monad.Trans (lift)
+import Data.Foldable (find)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Language.LSP.Server as LSP
@@ -41,7 +42,7 @@ import Monad (ServerM)
 import Options (Config)
 import Server.Model.AgdaFile (AgdaFile, agdaFileRefs, agdaFileSymbols, emptyAgdaFile, insertRef, insertSymbolInfo)
 import Server.Model.Monad (WithAgdaLibM)
-import Server.Model.Symbol (Ref (Ref), RefKind (..), SymbolInfo (..), SymbolKind (..))
+import Server.Model.Symbol (Ref (Ref), RefKind (..), SymbolInfo (..), SymbolKind (..), refKind, refRange)
 
 data NamedArgUsage = NamedArgUsage
   { nauHead :: !A.AmbiguousQName,
@@ -81,8 +82,7 @@ type IndexerM = ReaderT Env WithAgdaLibM
 execIndexerM :: IndexerM a -> WithAgdaLibM AgdaFile
 execIndexerM x = do
   env <- initEnv
-  _ <- runReaderT x env
-  -- TODO: resolve named arg usages
+  _ <- runReaderT (x >> postprocess) env
   liftIO $ readIORef $ envAgdaFile env
 
 --------------------------------------------------------------------------------
@@ -164,6 +164,27 @@ tellNamedArgUsage headNameLike argName = do
 
 withParent :: (NameLike n) => n -> IndexerM a -> IndexerM a
 withParent nameLike = local $ \e -> e {envParent = Just $ toQName nameLike}
+
+--------------------------------------------------------------------------------
+
+postprocess :: IndexerM ()
+postprocess = do
+  agdaFileRef <- asks envAgdaFile
+  -- TODO: resolve named arg usages
+  liftIO $ modifyIORef' agdaFileRef $ over agdaFileRefs $ Map.map dedupSimultaneousDeclDef
+
+-- | We sometimes emit a `Decl` and `Def` for the same source range. For
+-- example, we must emit a distinct `Decl` and `Def` when a `data` is declared
+-- and defined separately, but not when it is declared and defined all at once.
+-- It is harder distinguish these in abstract syntax than to idenfify and
+-- correct them at the end.
+dedupSimultaneousDeclDef :: [Ref] -> [Ref]
+dedupSimultaneousDeclDef refs =
+  case find (\ref -> refKind ref == Decl) refs of
+    Nothing -> refs
+    Just decl ->
+      let pred ref = not (refKind ref == Def && refRange ref == refRange decl)
+       in filter pred refs
 
 --------------------------------------------------------------------------------
 
