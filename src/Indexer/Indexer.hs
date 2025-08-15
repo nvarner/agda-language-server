@@ -20,6 +20,7 @@ import Agda.Utils.Functor ((<&>))
 import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe (whenJust)
+import Agda.Utils.Monad (when)
 import Data.Foldable (forM_, traverse_)
 import qualified Data.Set as Set
 import Data.Void (absurd)
@@ -59,10 +60,13 @@ class Indexable a where
 instance Indexable A.Declaration where
   index = \case
     A.Axiom kindOfName defInfo _argInfo _polarities name type' -> do
+      -- TODO: what does the `ArgInfo` mean?
+      -- Includes postulates, function declarations
       tellDecl name kindOfName type'
       index defInfo
       index type'
     A.Generalize _generalizeVars defInfo _argInfo name type' -> do
+      -- TODO: what does the `ArgInfo` mean?
       tellDecl name GeneralizeVar type'
       index defInfo
       index type'
@@ -175,7 +179,9 @@ instance Indexable A.Expr where
       index exprF
       case funNameFromExpr exprF of
         Just name -> indexNamedArgs name [exprArg]
-        Nothing -> index $ C.namedThing $ C.unArg exprArg
+        Nothing ->
+          when (C.argInfoOrigin (C.argInfo exprArg) == C.UserWritten) $ do
+            index $ C.namedThing $ C.unArg exprArg
     A.WithApp _appInfo exprF exprArgs -> do
       index exprF
       index exprArgs
@@ -266,7 +272,10 @@ instance (Indexable a) => Indexable [a]
 
 instance (Indexable a) => Indexable (List1 a)
 
-instance (Indexable a) => Indexable (C.Arg a)
+instance (Indexable a) => Indexable (C.Arg a) where
+  index (C.Arg argInfo x) =
+    when (C.argInfoOrigin argInfo == C.UserWritten) $
+      index x
 
 instance Indexable A.TacticAttribute
 
@@ -276,15 +285,17 @@ instance Indexable A.DefInfo where
 indexNamedArgs :: (AmbiguousNameLike n, Indexable a) => n -> [C.NamedArg a] -> IndexerM ()
 indexNamedArgs headNameLike args = do
   let headName = toAmbiguousQName headNameLike
-  forM_ args $ \(C.Arg _argInfo (C.Named maybeName x)) -> do
-    whenJust maybeName $ tellNamedArgUsage headName
-    index x
+  forM_ args $ \(C.Arg argInfo (C.Named maybeName x)) ->
+    when (C.argInfoOrigin argInfo == C.UserWritten) $ do
+      whenJust maybeName $ tellNamedArgUsage headName
+      index x
 
 indexWithExpr :: A.WithExpr -> IndexerM ()
-indexWithExpr (C.Named maybeName (C.Arg _argInfo expr)) = do
-  whenJust maybeName $ \(A.BindName name) ->
-    tellDef name Param UnknownType
-  index expr
+indexWithExpr (C.Named maybeName (C.Arg argInfo expr)) =
+  when (C.argInfoOrigin argInfo == C.UserWritten) $ do
+    whenJust maybeName $ \(A.BindName name) ->
+      tellDef name Param UnknownType
+    index expr
 
 instance Indexable Lit.Literal where
   index = \case
@@ -330,8 +341,9 @@ instance (Indexable a) => Indexable (A.LHSCore' a) where
       index lhsHead
       index withPatterns
       -- TODO: what do the named args mean?
-      forM_ pats $ \(C.Arg _argInfo (C.Named _name pat)) ->
-        index pat
+      forM_ pats $ \(C.Arg argInfo (C.Named _name pat)) ->
+        when (C.argInfoOrigin argInfo == C.UserWritten) $
+          index pat
 
 instance Indexable A.LHS where
   index (A.LHS lhsInfo core) = case Info.lhsEllipsis lhsInfo of
@@ -412,6 +424,7 @@ instance Indexable A.ImportDirective where
 instance Indexable A.LetBinding where
   index = \case
     A.LetBind _letInfo _argInfo boundName type' expr -> do
+      -- TODO: what does the `ArgInfo` mean?
       tellDef boundName Local type'
       index type'
       index expr
@@ -431,10 +444,12 @@ instance Indexable A.LetBinding where
 indexNamedArgBinder ::
   (TypeLike t, HasParamNames t) =>
   C.NamedArg A.Binder -> t -> IndexerM ()
-indexNamedArgBinder namedArgBinder typeLike = do
-  let A.Binder pat name = C.namedThing $ C.unArg namedArgBinder
-  tellDef name Param typeLike
-  index pat
+indexNamedArgBinder
+  (C.Arg argInfo (C.Named _maybeArgName (A.Binder pat name)))
+  typeLike =
+    when (C.argInfoOrigin argInfo == C.UserWritten) $ do
+      tellDef name Param typeLike
+      index pat
 
 instance Indexable A.TypedBinding where
   index = \case
