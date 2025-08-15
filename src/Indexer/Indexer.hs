@@ -441,7 +441,7 @@ instance Indexable A.LetBinding where
       tellUsage moduleName
       index importDirective
     A.LetDeclaredVariable boundName ->
-      tellDef boundName Local UnknownType
+      tellDecl boundName Local UnknownType
 
 indexNamedArgBinder ::
   (TypeLike t, HasParamNames t) =>

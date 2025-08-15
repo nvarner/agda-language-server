@@ -79,14 +79,14 @@ instance Pretty Declaration where
       ( text "RecSig",
         prettyMap
           [ (text "name", pretty name),
+            (text "genTel", pretty genTel),
             (text "type", pretty type')
           ]
       )
-    RecDef _defInfo name _univCheck _recDirs _dataDefParams type' decls ->
+    RecDef _defInfo name _univCheck _recDirs _dataDefParams _type' decls ->
       ( text "RecDef",
         prettyMap
           [ (text "name", pretty name),
-            (text "type", pretty type'),
             (text "decls", pretty decls)
           ]
       )
@@ -134,10 +134,20 @@ instance Pretty Expr where
             (text "codom", pretty codom)
           ]
       )
+    Let _exprInfo bindings body ->
+      ( text "Let",
+        prettyMap
+          [ (text "bindings", pretty bindings),
+            (text "body", pretty body)
+          ]
+      )
     -- ...
     ScopedExpr _scopeInfo expr -> (text "ScopedExpr", pretty expr)
     -- ...
     _ -> ("Expr", mempty)
+
+instance (Pretty a) => Pretty (Pattern' a) where
+  pretty _pat = text "pat"
 
 debugNamedBinder :: NamedArg Binder -> Doc
 debugNamedBinder (Arg argInfo binder) = pshow (argInfoOrigin argInfo) <+> pretty binder
@@ -154,6 +164,7 @@ instance Pretty LetBinding where
       text "let" <+> pretty (unBind name) <+> text "=" <+> pretty expr
     LetPatBind _letInfo pat expr ->
       text "letPat" <+> pretty pat <+> text "=" <+> pretty expr
+    LetDeclaredVariable name -> text "letDeclared" <+> pretty (unBind name)
     _ -> text "LetBinding"
 
 instance Pretty Binder where
@@ -172,10 +183,19 @@ instance Pretty GeneralizeTelescope where
       [ ( "GeneralizeTelescope",
           prettyMap
             [ (text "generalizeTelVars", prettyMap $ Map.toList $ generalizeTelVars genTel),
-              (text "generalizeTel", pretty $ show <$> generalizeTel genTel)
+              (text "generalizeTel", pretty $ generalizeTel genTel)
             ]
         )
       ]
 
-instance Pretty (Clause' lhs) where
-  pretty clause = text "clause"
+instance (Pretty lhs) => Pretty (Clause' lhs) where
+  pretty (Clause lhs _strippedPats rhs whereDecls _catchall) =
+    pretty lhs <+> text "=" <+> pretty rhs
+
+instance Pretty LHS where
+  pretty _lhs = text "lhs"
+
+instance Pretty RHS where
+  pretty = \case
+    RHS expr _concrete -> pretty expr
+    _ -> text "rhs"
