@@ -1,12 +1,21 @@
-module Indexer (indexFile) where
+{-# LANGUAGE CPP #-}
 
-import Agda.Interaction.FindFile (SourceFile (SourceFile), srcFilePath)
+module Indexer
+  ( withAstFor,
+    indexFile,
+  )
+where
+
+#if MIN_VERSION_Agda(2,8,0)
+#else
+import Agda.Interaction.FindFile (srcFilePath)
+#endif
 import qualified Agda.Interaction.Imports as Imp
 import qualified Agda.Interaction.Imports.More as Imp
 import Agda.Interaction.Library (getPrimitiveLibDir)
 import Agda.Interaction.Options (defaultOptions, optLoadPrimitives)
 import qualified Agda.Syntax.Concrete as C
-import Agda.Syntax.Translation.ConcreteToAbstract (ToAbstract (toAbstract), TopLevel (TopLevel))
+import Agda.Syntax.Translation.ConcreteToAbstract (ToAbstract (toAbstract), TopLevel (TopLevel), TopLevelInfo)
 import Agda.Syntax.Translation.ReflectedToAbstract (toAbstract_)
 import qualified Agda.TypeChecking.Monad as TCM
 import Agda.Utils.FileName (AbsolutePath, filePath, mkAbsolute)
@@ -22,10 +31,26 @@ import Server.Model.AgdaFile (AgdaFile)
 import Server.Model.Monad (MonadAgdaLib, WithAgdaLibM)
 import System.FilePath ((</>))
 
-indexFile ::
-  Imp.Source ->
-  WithAgdaLibM AgdaFile
-indexFile src = do
+withAstFor :: Imp.Source -> (TopLevelInfo -> WithAgdaLibM a) -> WithAgdaLibM a
+#if MIN_VERSION_Agda(2,8,0)
+withAstFor src f = do
+  TCM.liftTCM $
+    TCM.setCurrentRange (C.modPragmas . Imp.srcModule $ src) $
+      -- Now reset the options
+      TCM.setCommandLineOptions . TCM.stPersistentOptions . TCM.stPersistentState =<< TCM.getTC
+
+  TCM.modifyTCLens TCM.stModuleToSourceId $ Map.insert (Imp.srcModuleName src) (Imp.srcOrigin src)
+
+  TCM.localTC (\e -> e {TCM.envCurrentPath = Just (TCM.srcFileId $ Imp.srcOrigin src)}) $ do
+    let topLevel =
+          TopLevel
+            (Imp.srcOrigin src)
+            (Imp.srcModuleName src)
+            (C.modDecls $ Imp.srcModule src)
+    ast <- TCM.liftTCM $ toAbstract topLevel
+    f ast
+#else
+withAstFor src f = do
   currentOptions <- TCM.useTC TCM.stPragmaOptions
 
   TCM.liftTCM $
@@ -42,7 +67,13 @@ indexFile src = do
             (Imp.srcModuleName src)
             (C.modDecls $ Imp.srcModule src)
     ast <- TCM.liftTCM $ toAbstract topLevel
-    abstractToIndex ast
+    f ast
+#endif
+
+indexFile ::
+  Imp.Source ->
+  WithAgdaLibM AgdaFile
+indexFile src = withAstFor src abstractToIndex
 
 -- let options = defaultOptions
 
