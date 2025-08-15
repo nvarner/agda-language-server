@@ -1,4 +1,8 @@
-module Indexer (indexFile) where
+module Indexer
+  ( withAstFor,
+    indexFile,
+  )
+where
 
 import Agda.Interaction.FindFile (SourceFile (SourceFile), srcFilePath)
 import qualified Agda.Interaction.Imports as Imp
@@ -6,7 +10,7 @@ import qualified Agda.Interaction.Imports.More as Imp
 import Agda.Interaction.Library (getPrimitiveLibDir)
 import Agda.Interaction.Options (defaultOptions, optLoadPrimitives)
 import qualified Agda.Syntax.Concrete as C
-import Agda.Syntax.Translation.ConcreteToAbstract (ToAbstract (toAbstract), TopLevel (TopLevel))
+import Agda.Syntax.Translation.ConcreteToAbstract (ToAbstract (toAbstract), TopLevel (TopLevel), TopLevelInfo)
 import Agda.Syntax.Translation.ReflectedToAbstract (toAbstract_)
 import qualified Agda.TypeChecking.Monad as TCM
 import Agda.Utils.FileName (AbsolutePath, filePath, mkAbsolute)
@@ -22,10 +26,8 @@ import Server.Model.AgdaFile (AgdaFile)
 import Server.Model.Monad (MonadAgdaLib, WithAgdaLibM)
 import System.FilePath ((</>))
 
-indexFile ::
-  Imp.Source ->
-  WithAgdaLibM AgdaFile
-indexFile src = do
+withAstFor :: Imp.Source -> (TopLevelInfo -> WithAgdaLibM a) -> WithAgdaLibM a
+withAstFor src f = do
   currentOptions <- TCM.useTC TCM.stPragmaOptions
 
   TCM.liftTCM $
@@ -42,7 +44,12 @@ indexFile src = do
             (Imp.srcModuleName src)
             (C.modDecls $ Imp.srcModule src)
     ast <- TCM.liftTCM $ toAbstract topLevel
-    abstractToIndex ast
+    f ast
+
+indexFile ::
+  Imp.Source ->
+  WithAgdaLibM AgdaFile
+indexFile src = withAstFor src abstractToIndex
 
 -- let options = defaultOptions
 

@@ -3,6 +3,9 @@ module Test.Indexer.Invariants (tests) where
 import Agda.Interaction.FindFile (SourceFile (SourceFile), srcFilePath)
 import qualified Agda.Interaction.Imports as Imp
 import Agda.Interaction.Options (defaultOptions)
+import Agda.Syntax.Abstract.More ()
+import Agda.Syntax.Common.Pretty (prettyShow)
+import Agda.Syntax.Translation.ConcreteToAbstract (TopLevelInfo (topLevelDecls))
 import qualified Agda.TypeChecking.Monad as TCM
 import Agda.Utils.FileName (absolute)
 import Agda.Utils.Lens ((^.))
@@ -12,14 +15,14 @@ import Data.Foldable (traverse_)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
-import Indexer (indexFile)
+import Indexer (indexFile, withAstFor)
 import Indexer.Indexer (abstractToIndex)
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Server as LSP
 import Monad (runServerM)
 import Server.Model.AgdaFile (AgdaFile, agdaFileRefs)
 import Server.Model.Monad (withAgdaLibFor)
-import System.FilePath (takeBaseName)
+import System.FilePath (takeBaseName, (</>))
 import Test.Indexer.NoMissing (testNoMissing)
 import Test.Indexer.NoOverlap (testNoOverlap)
 import Test.Tasty (TestTree, testGroup)
@@ -47,6 +50,17 @@ tests = do
           TCM.modifyTCLens TCM.stModuleToSource $ Map.insert (Imp.srcModuleName src) (srcFilePath $ Imp.srcOrigin src)
           checkResult <- TCM.liftTCM $ Imp.typeCheckMain Imp.TypeCheck src
           return $ Imp.crInterface checkResult
+
+        ast <- withAgdaLibFor uri $ do
+          TCM.liftTCM $ TCM.setCommandLineOptions defaultOptions
+          absInPath <- liftIO $ absolute inPath
+          let srcFile = SourceFile absInPath
+          src <- TCM.liftTCM $ Imp.parseSource srcFile
+
+          withAstFor src return
+
+        -- Write the AST to a file for debugging purposes
+        liftIO $ writeFile ("test/data/AST" </> testName) $ prettyShow $ topLevelDecls ast
 
         withAgdaLibFor uri $ do
           TCM.liftTCM $ TCM.setCommandLineOptions defaultOptions
