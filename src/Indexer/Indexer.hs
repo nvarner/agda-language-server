@@ -116,11 +116,13 @@ instance Indexable A.Declaration where
       index defInfo
       index genTel
       index type'
-    A.RecDef defInfo name _univCheck recDirectives dataDefParams type' decls -> do
-      tellDef name Record type'
+    A.RecDef defInfo name _univCheck recDirectives dataDefParams _type' decls -> do
+      -- The type associated with a `RecDef` is a Pi type including the record's
+      -- fields, which is not what we want. The `RecSig` does have the type we
+      -- want, so we use that instead.
+      tellDef name Record UnknownType
       index defInfo
       index dataDefParams
-      index type'
       withParent name $ do
         index recDirectives
         index decls
