@@ -99,8 +99,6 @@ instance Indexable A.Declaration where
       tellUsage moduleName
       index importDirective
     A.FunDef defInfo name clauses -> do
-      -- tellDef name Fun UnknownType
-      -- index defInfo
       withParent name $ do
         index clauses
     A.DataSig defInfo _erased name genTel type' -> do
