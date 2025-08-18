@@ -74,7 +74,7 @@ run options = do
           staticHandlers = const handlers,
           interpretHandler = \(ctxEnv, env) ->
             Iso
-              { forward = runLspT ctxEnv . runServerM env,
+              { forward = runLspT ctxEnv . runServerT env,
                 backward = liftIO
               },
           options = lspOptions
@@ -104,7 +104,7 @@ syncOptions =
     }
 
 -- handlers of the LSP server
-handlers :: Handlers (ServerM (LspM Config))
+handlers :: Handlers ServerM
 handlers =
   mconcat
     [ -- custom methods, not part of LSP

@@ -81,7 +81,7 @@ import           Options                        ( Config
 initialiseCommandQueue :: IO CommandQueue
 initialiseCommandQueue = CommandQueue <$> newTChanIO <*> newTVarIO Nothing
 
-runCommandM :: CommandM a -> ServerM (LspM Config) (Either String a)
+runCommandM :: CommandM a -> ServerM (Either String a)
 runCommandM program = do
   env <- ask
   runAgda $ do
@@ -100,7 +100,7 @@ runCommandM program = do
     lift $ evalStateT program commandState
 
 inferTypeOfText
-  :: FilePath -> Text -> ServerM (LspM Config) (Either String String)
+  :: FilePath -> Text -> ServerM (Either String String)
 inferTypeOfText filepath text = runCommandM $ do
     -- load first
   cmd_load' filepath [] True Imp.TypeCheck $ \_ -> return ()
@@ -114,7 +114,7 @@ inferTypeOfText filepath text = runCommandM $ do
 
   render <$> prettyATop typ
 
-onHover :: LSP.Uri -> LSP.Position -> ServerM (LspM Config) (LSP.Hover LSP.|? LSP.Null)
+onHover :: LSP.Uri -> LSP.Position -> ServerM (LSP.Hover LSP.|? LSP.Null)
 onHover uri pos = do
   result <- LSP.getVirtualFile (LSP.toNormalizedUri uri)
   case result of

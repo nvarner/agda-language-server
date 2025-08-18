@@ -32,7 +32,7 @@ import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Protocol.Types.Uri.More as LSP
 import Language.LSP.Server (LspM)
 import qualified Language.LSP.Server as LSP
-import Monad (ServerM, askModel)
+import Monad (ServerM, ServerT, askModel)
 import Options (Config)
 import qualified Server.Model as Model
 import Server.Model.AgdaFile (AgdaFile)
@@ -110,9 +110,9 @@ newtype WithAgdaLibT m a = WithAgdaLibT {unWithAgdaLibT :: ReaderT AgdaLib m a}
 runWithAgdaLibT :: AgdaLib -> WithAgdaLibT m a -> m a
 runWithAgdaLibT agdaLib = flip runReaderT agdaLib . unWithAgdaLibT
 
-type WithAgdaLibM = WithAgdaLibT (ServerM (LspM Config))
+type WithAgdaLibM = WithAgdaLibT ServerM
 
-withAgdaLibFor :: LSP.Uri -> WithAgdaLibM a -> ServerM (LspM Config) a
+withAgdaLibFor :: LSP.Uri -> WithAgdaLibM a -> ServerM a
 withAgdaLibFor uri x = do
   let normUri = LSP.toNormalizedUri uri
   model <- askModel
@@ -165,7 +165,7 @@ runWithAgdaFileT agdaLib agdaFile =
   let env = WithAgdaFileEnv agdaLib agdaFile
    in flip runReaderT env . unWithAgdaFileT
 
-type WithAgdaFileM = WithAgdaFileT (ServerM (LspM Config))
+type WithAgdaFileM = WithAgdaFileT ServerM
 
 type HandlerWithAgdaFile m =
   LSP.TRequestMessage m ->
@@ -177,7 +177,7 @@ withAgdaFile ::
   (LSP.HasTextDocument (LSP.MessageParams m) LSP.TextDocumentIdentifier) =>
   LSP.SMethod m ->
   HandlerWithAgdaFile m ->
-  LSP.Handlers (ServerM (LspM Config))
+  LSP.Handlers ServerM
 withAgdaFile m handler = LSP.requestHandler m $ \req responder -> do
   let uri = req ^. LSP.params . LSP.textDocument . LSP.uri
       normUri = LSP.toNormalizedUri uri
