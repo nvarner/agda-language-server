@@ -17,6 +17,7 @@ import qualified Language.LSP.Server as LSP
 import Monad (runServerM)
 import Server.Model.Monad (withAgdaLibFor)
 import System.FilePath (takeBaseName, (</>))
+import Test.Indexer.NoDuplicateDecl (testNoDuplicateDecl)
 import Test.Indexer.NoMissing (testNoMissing)
 import Test.Indexer.NoOverlap (testNoOverlap)
 import Test.Tasty (TestTree, testGroup)
@@ -70,5 +71,6 @@ tests = do
     testGroup
       "Invariants"
       [ testGroup "No reference overlap" ((\(name, file, _interface) -> testNoOverlap name file) <$> files),
-        testGroup "No missing references" ((\(name, file, interface) -> testNoMissing name file interface) <$> files)
+        testGroup "No missing references" ((\(name, file, interface) -> testNoMissing name file interface) <$> files),
+        testGroup "No duplicate declarations" ((\(name, file, _interface) -> testNoDuplicateDecl name file) <$> files)
       ]
