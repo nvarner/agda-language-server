@@ -5,13 +5,21 @@
 module Indexer.Monad
   ( IndexerM,
     execIndexerM,
+    modifyAgdaFile',
     tellParamNames,
+    DataRecordParams (..),
+    tellDefParams,
+    tellGenTel,
+    getDataRecordParams,
     tellDef,
     tellDecl,
+    tellBinding,
     tellUsage,
     tellImport,
     tellNamedArgUsage,
     withParent,
+    BindingKind (..),
+    withBindingKind,
     NameLike (..),
     AmbiguousNameLike (..),
     SymbolKindLike (..),
@@ -25,33 +33,45 @@ where
 import Agda.Position (toLspRange)
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Common as C
-import Agda.Syntax.Position (HasRange, getRange)
+import Agda.Syntax.Position (getRange)
 import Agda.Utils.IORef (IORef, modifyIORef', newIORef, readIORef)
-import Agda.Utils.Lens (over, (^.))
 import Agda.Utils.List1 (List1, concatMap1)
-import Agda.Utils.Maybe (isNothing)
 import Control.Applicative ((<|>))
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader (MonadReader (local), ReaderT (runReaderT), asks)
 import Control.Monad.Trans (lift)
-import Data.Foldable (find)
 import Data.Map (Map)
 import qualified Data.Map as Map
-import qualified Language.LSP.Server as LSP
-import Monad (ServerM)
-import Options (Config)
-import Server.Model.AgdaFile (AgdaFile, agdaFileRefs, agdaFileSymbols, emptyAgdaFile, insertRef, insertSymbolInfo)
+import Server.Model.AgdaFile (AgdaFile, emptyAgdaFile, insertRef, insertSymbolInfo)
 import Server.Model.Monad (WithAgdaLibM)
-import Server.Model.Symbol (Ref (Ref), RefKind (..), SymbolInfo (..), SymbolKind (..), refKind, refRange)
+import Server.Model.Symbol (Ref (Ref), RefKind (..), SymbolInfo (..), SymbolKind (..))
 
 data NamedArgUsage = NamedArgUsage
   { nauHead :: !A.AmbiguousQName,
     nauArg :: !C.NamedName
   }
 
+data DataRecordParams = DataRecordParams
+  { drpGenTel :: !(Maybe A.GeneralizeTelescope),
+    drpParams :: !(Maybe A.DataDefParams)
+  }
+
+instance Semigroup DataRecordParams where
+  DataRecordParams x y <> DataRecordParams x' y' = DataRecordParams (x <|> x') (y <|> y')
+
+instance Monoid DataRecordParams where
+  mempty = DataRecordParams Nothing Nothing
+
+data BindingKind = DeclBinding | DefBinding
+
+bindingKindToRefKind :: BindingKind -> RefKind
+bindingKindToRefKind DeclBinding = Decl
+bindingKindToRefKind DefBinding = Def
+
 data Env = Env
   { envAgdaFile :: !(IORef AgdaFile),
     envParent :: !(Maybe A.QName),
+    envBindingKind :: !BindingKind,
     -- | Parameter names in implicit arguments, such as x in `f {x = y} = y` and
     -- `g y = f {x = y}`, are represented by strings in abstract syntax. This is
     -- because we need type checking information to resolve these names, not
@@ -66,7 +86,8 @@ data Env = Env
     -- These are the stored parameter names, indexed by the name of the function
     -- (or other defined symbol).
     envParamNames :: !(IORef (Map A.QName [A.QName])),
-    envNamedArgUsages :: !(IORef [NamedArgUsage])
+    envNamedArgUsages :: !(IORef [NamedArgUsage]),
+    envDataRecordParams :: !(IORef (Map A.QName DataRecordParams))
   }
 
 initEnv :: (MonadIO m) => m Env
@@ -75,31 +96,28 @@ initEnv = do
   let parent = Nothing
   paramNames <- liftIO $ newIORef Map.empty
   namedArgUsages <- liftIO $ newIORef []
-  return $ Env agdaFile parent paramNames namedArgUsages
+  dataRecordParams <- liftIO $ newIORef mempty
+  return $ Env agdaFile parent DeclBinding paramNames namedArgUsages dataRecordParams
 
 type IndexerM = ReaderT Env WithAgdaLibM
 
 execIndexerM :: IndexerM a -> WithAgdaLibM AgdaFile
 execIndexerM x = do
   env <- initEnv
-  _ <- runReaderT (x >> postprocess) env
+  _ <- runReaderT x env
   liftIO $ readIORef $ envAgdaFile env
 
 --------------------------------------------------------------------------------
 
--- Used when inserting a new `SymbolInfo` into a map already containing a
--- `SymbolInfo` for the given symbol
-updateSymbolInfo :: SymbolInfo -> SymbolInfo -> SymbolInfo
-updateSymbolInfo new old =
-  SymbolInfo
-    (symbolKind old <> symbolKind new)
-    (symbolType old <|> symbolType new)
-    (symbolParent old <|> symbolParent new)
+modifyAgdaFile' :: (AgdaFile -> AgdaFile) -> IndexerM ()
+modifyAgdaFile' f = do
+  agdaFileRef <- asks envAgdaFile
+  liftIO $ modifyIORef' agdaFileRef f
 
 tellSymbolInfo' :: A.QName -> SymbolInfo -> IndexerM ()
 tellSymbolInfo' name symbolInfo = do
   agdaFileRef <- asks envAgdaFile
-  liftIO $ modifyIORef' agdaFileRef $ insertSymbolInfo updateSymbolInfo name symbolInfo
+  liftIO $ modifyIORef' agdaFileRef $ insertSymbolInfo name symbolInfo
 
 tellSymbolInfo ::
   (NameLike n, SymbolKindLike s, TypeLike t) =>
@@ -133,21 +151,51 @@ tellParamNames nameLike hasParamNames = do
   paramNamesRef <- asks envParamNames
   liftIO $ modifyIORef' paramNamesRef $ Map.insert name paramNames
 
+tellDefParams :: (NameLike n) => n -> A.DataDefParams -> IndexerM ()
+tellDefParams nameLike defParams = do
+  let name = toQName nameLike
+  dataRecordParamsRef <- asks envDataRecordParams
+  liftIO $
+    modifyIORef' dataRecordParamsRef $
+      Map.insertWith (<>) name (DataRecordParams Nothing (Just defParams))
+
+tellGenTel :: (NameLike n) => n -> A.GeneralizeTelescope -> IndexerM ()
+tellGenTel nameLike genTel = do
+  let name = toQName nameLike
+  dataRecordParamsRef <- asks envDataRecordParams
+  liftIO $
+    modifyIORef' dataRecordParamsRef $
+      Map.insertWith (<>) name (DataRecordParams (Just genTel) Nothing)
+
+getDataRecordParams :: IndexerM (Map A.QName DataRecordParams)
+getDataRecordParams = do
+  dataRecordParamsRef <- asks envDataRecordParams
+  liftIO $ readIORef dataRecordParamsRef
+
+tellBinding' ::
+  (NameLike n, SymbolKindLike s, TypeLike t, HasParamNames t) =>
+  BindingKind -> n -> s -> t -> IndexerM ()
+tellBinding' b n s t = do
+  tellSymbolInfo n s t
+  tellRef n (bindingKindToRefKind b)
+  tellParamNames n t
+
 tellDef ::
   (NameLike n, SymbolKindLike s, TypeLike t, HasParamNames t) =>
   n -> s -> t -> IndexerM ()
-tellDef n s t = do
-  tellSymbolInfo n s t
-  tellRef n Def
-  tellParamNames n t
+tellDef = tellBinding' DefBinding
 
 tellDecl ::
   (NameLike n, SymbolKindLike s, TypeLike t, HasParamNames t) =>
   n -> s -> t -> IndexerM ()
-tellDecl n s t = do
-  tellSymbolInfo n s t
-  tellRef n Decl
-  tellParamNames n t
+tellDecl = tellBinding' DeclBinding
+
+tellBinding ::
+  (NameLike n, SymbolKindLike s, TypeLike t, HasParamNames t) =>
+  n -> s -> t -> IndexerM ()
+tellBinding n s t = do
+  b <- asks envBindingKind
+  tellBinding' b n s t
 
 tellUsage :: (AmbiguousNameLike n) => n -> IndexerM ()
 tellUsage n = tellRef n Usage
@@ -165,26 +213,8 @@ tellNamedArgUsage headNameLike argName = do
 withParent :: (NameLike n) => n -> IndexerM a -> IndexerM a
 withParent nameLike = local $ \e -> e {envParent = Just $ toQName nameLike}
 
---------------------------------------------------------------------------------
-
-postprocess :: IndexerM ()
-postprocess = do
-  agdaFileRef <- asks envAgdaFile
-  -- TODO: resolve named arg usages
-  liftIO $ modifyIORef' agdaFileRef $ over agdaFileRefs $ Map.map dedupSimultaneousDeclDef
-
--- | We sometimes emit a `Decl` and `Def` for the same source range. For
--- example, we must emit a distinct `Decl` and `Def` when a `data` is declared
--- and defined separately, but not when it is declared and defined all at once.
--- It is harder distinguish these in abstract syntax than to idenfify and
--- correct them at the end.
-dedupSimultaneousDeclDef :: [Ref] -> [Ref]
-dedupSimultaneousDeclDef refs =
-  case find (\ref -> refKind ref == Decl) refs of
-    Nothing -> refs
-    Just decl ->
-      let pred ref = not (refKind ref == Def && refRange ref == refRange decl)
-       in filter pred refs
+withBindingKind :: BindingKind -> IndexerM a -> IndexerM a
+withBindingKind bindingKind = local $ \e -> e {envBindingKind = bindingKind}
 
 --------------------------------------------------------------------------------
 
