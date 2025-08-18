@@ -14,7 +14,7 @@ import qualified Data.Map as Map
 import Indexer (indexFile, withAstFor)
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Server as LSP
-import Monad (runServerM)
+import Monad (runServerT)
 import Server.Model.Monad (withAgdaLibFor)
 import System.FilePath (takeBaseName, (</>))
 import Test.Indexer.NoDuplicateDecl (testNoDuplicateDecl)
@@ -34,7 +34,7 @@ tests = do
 
     (file, interface) <- LSP.runLspT undefined $ do
       env <- TestData.getServerEnv model
-      runServerM env $ do
+      runServerT env $ do
         interface <- withAgdaLibFor uri $ do
           TCM.liftTCM $ TCM.setCommandLineOptions defaultOptions
           absInPath <- liftIO $ absolute inPath

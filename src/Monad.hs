@@ -24,7 +24,8 @@ import Data.Text
   )
 import qualified Language.LSP.Protocol.Types as LSP
 import Language.LSP.Server
-  ( MonadLsp,
+  ( LspM,
+    MonadLsp,
     getConfig,
   )
 import Options
@@ -62,30 +63,32 @@ createInitEnv options =
 --------------------------------------------------------------------------------
 
 -- | OUR monad
-type ServerM m = ReaderT Env m
+type ServerT m = ReaderT Env m
 
-runServerM :: Env -> ServerM m a -> m a
-runServerM = flip runReaderT
+type ServerM = ServerT (LspM Config)
+
+runServerT :: Env -> ServerT m a -> m a
+runServerT = flip runReaderT
 
 --------------------------------------------------------------------------------
 
-writeLog :: (Monad m, MonadIO m) => Text -> ServerM m ()
+writeLog :: (Monad m, MonadIO m) => Text -> ServerT m ()
 writeLog msg = do
   chan <- asks envLogChan
   liftIO $ writeChan chan msg
 
-writeLog' :: (Monad m, MonadIO m, Show a) => a -> ServerM m ()
+writeLog' :: (Monad m, MonadIO m, Show a) => a -> ServerT m ()
 writeLog' x = do
   chan <- asks envLogChan
   liftIO $ writeChan chan $ pack $ show x
 
-askModel :: (MonadIO m) => ServerM m Model
+askModel :: (MonadIO m) => ServerT m Model
 askModel = do
   modelVar <- asks envModel
   liftIO $ readIORef modelVar
 
 -- | Provider
-provideCommand :: (Monad m, MonadIO m) => IOTCM -> ServerM m ()
+provideCommand :: (Monad m, MonadIO m) => IOTCM -> ServerT m ()
 provideCommand iotcm = do
   controller <- asks envCommandController
   liftIO $ CommandController.put controller iotcm
@@ -94,12 +97,12 @@ provideCommand iotcm = do
 consumeCommand :: (Monad m, MonadIO m) => Env -> m IOTCM
 consumeCommand env = liftIO $ CommandController.take (envCommandController env)
 
-waitUntilResponsesSent :: (Monad m, MonadIO m) => ServerM m ()
+waitUntilResponsesSent :: (Monad m, MonadIO m) => ServerT m ()
 waitUntilResponsesSent = do
   controller <- asks envResponseController
   liftIO $ ResponseController.setCheckpointAndWait controller
 
-signalCommandFinish :: (Monad m, MonadIO m) => ServerM m ()
+signalCommandFinish :: (Monad m, MonadIO m) => ServerT m ()
 signalCommandFinish = do
   writeLog "[Command] Finished"
   -- send `ResponseEnd`

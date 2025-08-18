@@ -16,7 +16,7 @@ import qualified Language.LSP.Protocol.Message as LSP
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Protocol.Utils.SMethodMap as SMethodMap
 import qualified Language.LSP.Server as LSP
-import Monad (Env (Env, envModel), ServerM, createInitEnv, runServerM)
+import Monad (Env (Env, envModel), ServerT, createInitEnv, runServerT)
 import Options (Config, defaultOptions, initConfig)
 import qualified Server.CommandController as CommandController
 import Server.Model (Model)
@@ -70,7 +70,7 @@ runHandler ::
   LSP.SMethod m ->
   LSP.TRequestMessage m ->
   Model ->
-  LSP.Handlers (ServerM (LSP.LspM Config)) ->
+  LSP.Handlers (ServerT (LSP.LspM Config)) ->
   IO (Either (LSP.TResponseError m) (LSP.MessageResult m))
 runHandler m request model handlers = do
   resultRef <- newIORef Nothing
@@ -80,7 +80,7 @@ runHandler m request model handlers = do
 
   LSP.runLspT undefined $ do
     env <- TestData.getServerEnv model
-    runServerM env $ handler request callback
+    runServerT env $ handler request callback
 
   Just result <- readIORef resultRef
   return result
