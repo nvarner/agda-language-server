@@ -3,7 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
-module Indexer.Indexer (abstractToIndex) where
+module Indexer.Indexer (indexAst) where
 
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Common as C
@@ -26,6 +26,7 @@ import qualified Data.Set as Set
 import Data.Void (absurd)
 import Indexer.Monad
   ( AmbiguousNameLike (..),
+    BindingKind (..),
     HasParamNames (..),
     IndexerM,
     NameLike (..),
@@ -33,24 +34,22 @@ import Indexer.Monad
     SymbolKindLike (..),
     TypeLike (..),
     UnknownType (UnknownType),
-    execIndexerM,
+    tellBinding,
     tellDecl,
     tellDef,
+    tellDefParams,
+    tellGenTel,
     tellImport,
     tellNamedArgUsage,
     tellParamNames,
     tellUsage,
+    withBindingKind,
     withParent,
   )
-import qualified Language.LSP.Server as LSP
-import Monad (ServerM)
-import Options (Config)
-import Server.Model.AgdaFile (AgdaFile)
-import Server.Model.Monad (WithAgdaLibM)
 import Server.Model.Symbol (SymbolKind (..))
 
-abstractToIndex :: TopLevelInfo -> WithAgdaLibM AgdaFile
-abstractToIndex (TopLevelInfo decls _scope) = execIndexerM $ index decls
+indexAst :: TopLevelInfo -> IndexerM ()
+indexAst (TopLevelInfo decls _scope) = index decls
 
 class Indexable a where
   index :: a -> IndexerM ()
@@ -98,34 +97,41 @@ instance Indexable A.Declaration where
     A.Open _moduleInfo moduleName importDirective -> do
       tellUsage moduleName
       index importDirective
-    A.FunDef _defInfo name clauses -> do
+    A.FunDef _defInfo name clauses -> withBindingKind DefBinding $ do
+      -- function declarations are captured by the `Axiom` case
       withParent name $ do
         index clauses
-    A.DataSig defInfo _erased name genTel type' -> do
-      tellDecl name Data type'
-      index defInfo
-      index genTel
-      index type'
-    A.DataDef defInfo name _univCheck dataDefParams constructors -> do
-      tellDef name Data UnknownType
-      index defInfo
-      index dataDefParams
-      index constructors
-    A.RecSig defInfo _erased name genTel type' -> do
-      tellDecl name Record type'
-      index defInfo
-      index genTel
-      index type'
-    A.RecDef defInfo name _univCheck recDirectives dataDefParams _type' decls -> do
-      -- The type associated with a `RecDef` is a Pi type including the record's
-      -- fields, which is not what we want. The `RecSig` does have the type we
-      -- want, so we use that instead.
-      tellDef name Record UnknownType
-      index defInfo
-      index dataDefParams
-      withParent name $ do
-        index recDirectives
-        index decls
+    A.DataSig defInfo _erased name genTel type' ->
+      withBindingKind DeclBinding $ do
+        tellDecl name Data type'
+        index defInfo
+        index genTel
+        tellGenTel name genTel
+        index type'
+    A.DataDef _defInfo name _univCheck dataDefParams constructors ->
+      withBindingKind DefBinding $ do
+        tellDef name Data UnknownType
+        index dataDefParams
+        tellDefParams name dataDefParams
+        index constructors
+    A.RecSig defInfo _erased name genTel type' ->
+      withBindingKind DeclBinding $ do
+        tellDecl name Record type'
+        index defInfo
+        index genTel
+        tellGenTel name genTel
+        index type'
+    A.RecDef _defInfo name _univCheck recDirectives dataDefParams _type' decls ->
+      withBindingKind DefBinding $ do
+        -- The type associated with a `RecDef` is a Pi type including the record's
+        -- fields, which is not what we want. The `RecSig` does have the type we
+        -- want, so we use that instead.
+        tellDef name Record UnknownType
+        index dataDefParams
+        tellDefParams name dataDefParams
+        withParent name $ do
+          index recDirectives
+          index decls
     A.PatternSynDef name bindings pat -> do
       tellDecl name PatternSyn UnknownType
       forM_ bindings $ \(C.WithHiding _hiding binding) ->
@@ -391,7 +397,7 @@ instance (Indexable a) => Indexable (A.Clause' a) where
 instance Indexable A.ModuleApplication where
   index = \case
     A.SectionApp tele moduleName args -> do
-      index tele
+      withBindingKind DeclBinding $ index tele
       tellUsage moduleName
       indexNamedArgs moduleName args
     A.RecordModuleInstance moduleName ->
@@ -427,7 +433,7 @@ instance Indexable A.LetBinding where
   index = \case
     A.LetBind _letInfo _argInfo boundName type' expr -> do
       -- TODO: what does the `ArgInfo` mean?
-      tellDef boundName Local type'
+      tellBinding boundName Local type'
       index type'
       index expr
     A.LetPatBind _letInfo pat expr -> do
@@ -441,6 +447,7 @@ instance Indexable A.LetBinding where
       tellUsage moduleName
       index importDirective
     A.LetDeclaredVariable boundName ->
+      -- This is always a declaration
       tellDecl boundName Local UnknownType
 
 indexNamedArgBinder ::
@@ -450,7 +457,7 @@ indexNamedArgBinder
   (C.Arg argInfo (C.Named _maybeArgName (A.Binder pat name)))
   typeLike =
     when (C.argInfoOrigin argInfo == C.UserWritten) $ do
-      tellDef name Param typeLike
+      tellBinding name Param typeLike
       index pat
 
 instance Indexable A.TypedBinding where
@@ -474,7 +481,8 @@ instance Indexable A.GeneralizeTelescope where
   index (A.GeneralizeTel _generalizeVars tel) = index tel
 
 instance Indexable A.DataDefParams where
-  index (A.DataDefParams _generalizeParams params) = index params
+  index (A.DataDefParams _generalizeParams params) =
+    withBindingKind DefBinding $ index params
 
 instance Indexable A.RecordDirectives where
   index = \case

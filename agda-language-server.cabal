@@ -58,6 +58,7 @@ library
       Indexer
       Indexer.Indexer
       Indexer.Monad
+      Indexer.Postprocess
       Language.LSP.Protocol.Types.More
       Language.LSP.Protocol.Types.Uri.More
       Monad
@@ -199,6 +200,7 @@ test-suite als-test
       Indexer
       Indexer.Indexer
       Indexer.Monad
+      Indexer.Postprocess
       Language.LSP.Protocol.Types.More
       Language.LSP.Protocol.Types.Uri.More
       Monad

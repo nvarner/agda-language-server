@@ -73,8 +73,13 @@ instance Pretty Declaration where
             (text "type", pretty type')
           ]
       )
-    DataDef _defIngo name _univCheck _dataDefParams _ctors ->
-      (text "DataDef", prettyMap [(text "name", pretty name)])
+    DataDef _defIngo name _univCheck dataDefParams _ctors ->
+      ( text "DataDef",
+        prettyMap
+          [ (text "name", pretty name),
+            (text "dataDefParams", pretty dataDefParams)
+          ]
+      )
     RecSig _defInfo _erased name genTel type' ->
       ( text "RecSig",
         prettyMap
@@ -83,10 +88,11 @@ instance Pretty Declaration where
             (text "type", pretty type')
           ]
       )
-    RecDef _defInfo name _univCheck _recDirs _dataDefParams _type' decls ->
+    RecDef _defInfo name _univCheck _recDirs dataDefParams _type' decls ->
       ( text "RecDef",
         prettyMap
           [ (text "name", pretty name),
+            (text "dataDefParams", pretty dataDefParams),
             (text "decls", pretty decls)
           ]
       )
@@ -170,6 +176,11 @@ instance Pretty LetBinding where
 instance Pretty Binder where
   pretty binder = pretty $ unBind $ binderName binder
 
+instance Pretty LamBinding where
+  pretty = \case
+    DomainFree _tacticAttr namedArgBinder -> debugNamedBinder namedArgBinder
+    DomainFull binding -> pretty binding
+
 instance (Pretty t) => Pretty (DefInfo' t) where
   pretty defInfo =
     align
@@ -199,3 +210,6 @@ instance Pretty RHS where
   pretty = \case
     RHS expr _concrete -> pretty expr
     _ -> text "rhs"
+
+instance Pretty DataDefParams where
+  pretty (DataDefParams _generalized params) = pretty params

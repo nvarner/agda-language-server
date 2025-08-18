@@ -5,14 +5,14 @@ module Server.Model.AgdaFile
     agdaFileRefs,
     insertSymbolInfo,
     insertRef,
+    mergeSymbols,
   )
 where
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common.Pretty (Pretty, pretty, prettyAssign, prettyMap, text, vcat)
 import Agda.Utils.Lens (Lens', over, (<&>), (^.))
-import Control.Monad (forM)
-import Data.Foldable (fold)
+import Data.Function ((&))
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Monoid (Endo (Endo, appEndo))
@@ -40,15 +40,33 @@ agdaFileRefs :: Lens' AgdaFile (Map A.QName [Ref])
 agdaFileRefs f a = f (_agdaFileRefs a) <&> \x -> a {_agdaFileRefs = x}
 
 insertSymbolInfo ::
-  (SymbolInfo -> SymbolInfo -> SymbolInfo) ->
   A.QName ->
   SymbolInfo ->
   AgdaFile ->
   AgdaFile
-insertSymbolInfo update name symbolInfo = over agdaFileSymbols $ Map.insertWith update name symbolInfo
+insertSymbolInfo name symbolInfo =
+  over agdaFileSymbols $ Map.insertWith (<>) name symbolInfo
 
 insertRef :: A.AmbiguousQName -> Ref -> AgdaFile -> AgdaFile
 insertRef ambiguousName ref =
   over agdaFileRefs $
     appEndo $
       foldMap (\name -> Endo $ Map.insertWith (<>) name [ref]) (A.unAmbQ ambiguousName)
+
+mergeSymbols :: A.QName -> A.QName -> AgdaFile -> AgdaFile
+mergeSymbols old new file =
+  file
+    & over
+      agdaFileSymbols
+      ( \symbols ->
+          let (oldSymbolInfo, symbols') =
+                Map.updateLookupWithKey (\_ _ -> Nothing) old symbols
+           in Map.alter (<> oldSymbolInfo) new symbols'
+      )
+    & over
+      agdaFileRefs
+      ( \refs ->
+          let (oldRefs, refs') =
+                Map.updateLookupWithKey (\_ _ -> Nothing) old refs
+           in Map.alter (<> oldRefs) new refs'
+      )

@@ -11,25 +11,15 @@ where
 import Agda.Interaction.FindFile (srcFilePath)
 #endif
 import qualified Agda.Interaction.Imports as Imp
-import qualified Agda.Interaction.Imports.More as Imp
-import Agda.Interaction.Library (getPrimitiveLibDir)
-import Agda.Interaction.Options (defaultOptions, optLoadPrimitives)
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Translation.ConcreteToAbstract (ToAbstract (toAbstract), TopLevel (TopLevel), TopLevelInfo)
-import Agda.Syntax.Translation.ReflectedToAbstract (toAbstract_)
 import qualified Agda.TypeChecking.Monad as TCM
-import Agda.Utils.FileName (AbsolutePath, filePath, mkAbsolute)
-import Agda.Utils.Monad (bracket_, unlessM, when)
-import qualified Agda.Utils.Trie as Trie
-import Control.Monad (forM_, void)
-import Control.Monad.IO.Class (liftIO)
 import qualified Data.Map as Map
-import qualified Data.Set as Set
-import qualified Data.Strict as Strict
-import Indexer.Indexer (abstractToIndex)
+import Indexer.Indexer (indexAst)
+import Indexer.Monad (execIndexerM)
+import Indexer.Postprocess (postprocess)
 import Server.Model.AgdaFile (AgdaFile)
-import Server.Model.Monad (MonadAgdaLib, WithAgdaLibM)
-import System.FilePath ((</>))
+import Server.Model.Monad (WithAgdaLibM)
 
 withAstFor :: Imp.Source -> (TopLevelInfo -> WithAgdaLibM a) -> WithAgdaLibM a
 #if MIN_VERSION_Agda(2,8,0)
@@ -51,8 +41,6 @@ withAstFor src f = do
     f ast
 #else
 withAstFor src f = do
-  currentOptions <- TCM.useTC TCM.stPragmaOptions
-
   TCM.liftTCM $
     TCM.setCurrentRange (C.modPragmas . Imp.srcModule $ src) $
       -- Now reset the options
@@ -73,7 +61,9 @@ withAstFor src f = do
 indexFile ::
   Imp.Source ->
   WithAgdaLibM AgdaFile
-indexFile src = withAstFor src abstractToIndex
+indexFile src = withAstFor src $ \ast -> execIndexerM $ do
+  indexAst ast
+  postprocess
 
 -- let options = defaultOptions
 

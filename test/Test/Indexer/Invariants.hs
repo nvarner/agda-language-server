@@ -8,26 +8,19 @@ import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Translation.ConcreteToAbstract (TopLevelInfo (topLevelDecls))
 import qualified Agda.TypeChecking.Monad as TCM
 import Agda.Utils.FileName (absolute)
-import Agda.Utils.Lens ((^.))
 import Control.Monad (forM)
 import Control.Monad.IO.Class (liftIO)
-import Data.Foldable (traverse_)
-import Data.IntMap (IntMap)
-import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import Indexer (indexFile, withAstFor)
-import Indexer.Indexer (abstractToIndex)
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Server as LSP
 import Monad (runServerM)
-import Server.Model.AgdaFile (AgdaFile, agdaFileRefs)
 import Server.Model.Monad (withAgdaLibFor)
 import System.FilePath (takeBaseName, (</>))
 import Test.Indexer.NoMissing (testNoMissing)
 import Test.Indexer.NoOverlap (testNoOverlap)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Golden (findByExtension)
-import Test.Tasty.HUnit (testCase)
 import qualified TestData
 
 tests :: IO TestTree

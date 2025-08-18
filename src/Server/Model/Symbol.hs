@@ -7,8 +7,8 @@ module Server.Model.Symbol
 where
 
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Common.Pretty (Doc, Pretty, comma, parens, parensNonEmpty, pretty, pshow, text, (<+>))
-import Agda.Syntax.Position (Position, PositionWithoutFile)
+import Agda.Syntax.Common.Pretty (Doc, Pretty, comma, parensNonEmpty, pretty, pshow, text, (<+>))
+import Control.Applicative ((<|>))
 import qualified Language.LSP.Protocol.Types as LSP
 import Language.LSP.Protocol.Types.More ()
 
@@ -47,6 +47,13 @@ instance Pretty SymbolInfo where
   pretty symbolInfo =
     pretty (symbolKind symbolInfo)
       <+> parensNonEmpty (pretty $ symbolType symbolInfo)
+
+instance Semigroup SymbolInfo where
+  new <> old =
+    SymbolInfo
+      (symbolKind old <> symbolKind new)
+      (symbolType old <|> symbolType new)
+      (symbolParent old <|> symbolParent new)
 
 data RefKind
   = -- | The symbol is being declared. There should be at most one declaration
