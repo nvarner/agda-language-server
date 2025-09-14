@@ -1,14 +1,19 @@
 module Server.Model.Symbol
   ( SymbolKind (..),
     SymbolInfo (..),
+    symbolShortName,
+    lspSymbolKind,
     RefKind (..),
     Ref (..),
+    refIsDef,
   )
 where
 
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Common.Pretty (Doc, Pretty, comma, parensNonEmpty, pretty, pshow, text, (<+>))
+import Agda.Syntax.Common.Pretty (Doc, Pretty, comma, parensNonEmpty, pretty, prettyShow, pshow, text, (<+>))
 import Control.Applicative ((<|>))
+import Data.Text (Text)
+import qualified Data.Text as Text
 import qualified Language.LSP.Protocol.Types as LSP
 import Language.LSP.Protocol.Types.More ()
 
@@ -37,8 +42,27 @@ instance Semigroup SymbolKind where
   Unknown <> k = k
   k <> _k = k
 
+toLspSymbolKind :: SymbolKind -> LSP.SymbolKind
+toLspSymbolKind = \case
+  Con -> LSP.SymbolKind_Constructor
+  CoCon -> LSP.SymbolKind_Constructor
+  Field -> LSP.SymbolKind_Field
+  PatternSyn -> LSP.SymbolKind_Function
+  GeneralizeVar -> LSP.SymbolKind_Variable
+  Macro -> LSP.SymbolKind_Function
+  Data -> LSP.SymbolKind_Enum
+  Record -> LSP.SymbolKind_Struct
+  Fun -> LSP.SymbolKind_Function
+  Axiom -> LSP.SymbolKind_Constant
+  Prim -> LSP.SymbolKind_Constant
+  Module -> LSP.SymbolKind_Module
+  Param -> LSP.SymbolKind_Variable
+  Local -> LSP.SymbolKind_Variable
+  Unknown -> LSP.SymbolKind_Variable
+
 data SymbolInfo = SymbolInfo
-  { symbolKind :: !SymbolKind,
+  { symbolName :: !A.QName,
+    symbolKind :: !SymbolKind,
     symbolType :: !(Maybe String),
     symbolParent :: !(Maybe A.QName)
   }
@@ -51,9 +75,16 @@ instance Pretty SymbolInfo where
 instance Semigroup SymbolInfo where
   new <> old =
     SymbolInfo
+      (symbolName new)
       (symbolKind old <> symbolKind new)
       (symbolType old <|> symbolType new)
       (symbolParent old <|> symbolParent new)
+
+symbolShortName :: SymbolInfo -> Text
+symbolShortName = Text.pack . prettyShow . symbolName
+
+lspSymbolKind :: SymbolInfo -> LSP.SymbolKind
+lspSymbolKind = toLspSymbolKind . symbolKind
 
 data RefKind
   = -- | The symbol is being declared. There should be at most one declaration
@@ -95,3 +126,6 @@ instance Pretty Ref where
   pretty ref =
     ((prettyAmbiguity ref <+> pretty (refKind ref)) <> comma)
       <+> pretty (refRange ref)
+
+refIsDef :: Ref -> Bool
+refIsDef ref = refKind ref == Def

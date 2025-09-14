@@ -78,6 +78,7 @@ library
       Server
       Server.CommandController
       Server.Handler
+      Server.Handler.TextDocument.DocumentSymbol
       Server.Model
       Server.Model.AgdaFile
       Server.Model.AgdaLib
@@ -221,6 +222,7 @@ test-suite als-test
       Server
       Server.CommandController
       Server.Handler
+      Server.Handler.TextDocument.DocumentSymbol
       Server.Model
       Server.Model.AgdaFile
       Server.Model.AgdaLib

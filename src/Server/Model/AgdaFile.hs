@@ -6,17 +6,24 @@ module Server.Model.AgdaFile
     insertSymbolInfo,
     insertRef,
     mergeSymbols,
+    symbolByName,
+    symbolsByParent,
+    defNameRange,
   )
 where
 
+import Agda.Position (toLspRange)
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common.Pretty (Pretty, pretty, prettyAssign, prettyMap, text, vcat)
+import Agda.Syntax.Position (getRange)
 import Agda.Utils.Lens (Lens', over, (<&>), (^.))
+import Data.Foldable (find)
 import Data.Function ((&))
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Monoid (Endo (Endo, appEndo))
-import Server.Model.Symbol (Ref, SymbolInfo)
+import qualified Language.LSP.Protocol.Types as LSP
+import Server.Model.Symbol (Ref, SymbolInfo, refIsDef, refRange, symbolParent)
 
 data AgdaFile = AgdaFile
   { _agdaFileSymbols :: !(Map A.QName SymbolInfo),
@@ -70,3 +77,19 @@ mergeSymbols old new file =
                 Map.updateLookupWithKey (\_ _ -> Nothing) old refs
            in Map.alter (<> oldRefs) new refs'
       )
+
+symbolByName :: AgdaFile -> A.QName -> Maybe SymbolInfo
+symbolByName agdaFile symbolName = Map.lookup symbolName $ agdaFile ^. agdaFileSymbols
+
+symbolsByParent :: AgdaFile -> Map (Maybe A.QName) [A.QName]
+symbolsByParent agdaFile =
+  let symbols = Map.toList $ agdaFile ^. agdaFileSymbols
+   in Map.fromListWith (++) $ (\(symbolName, symbol) -> (symbolParent symbol, [symbolName])) <$> symbols
+
+refsByName :: AgdaFile -> A.QName -> [Ref]
+refsByName agdaFile name = Map.findWithDefault [] name $ agdaFile ^. agdaFileRefs
+
+defNameRange :: AgdaFile -> A.QName -> LSP.Range
+defNameRange agdaFile name =
+  let defs = find refIsDef $ refsByName agdaFile name
+   in maybe (toLspRange $ getRange name) refRange defs

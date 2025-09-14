@@ -127,7 +127,7 @@ tellSymbolInfo nameLike symbolKindLike typeLike = do
       symbolKind = toSymbolKind symbolKindLike
   type' <- lift $ toTypeString typeLike
   parent <- asks envParent
-  let symbolInfo = SymbolInfo symbolKind type' parent
+  let symbolInfo = SymbolInfo name symbolKind type' parent
   tellSymbolInfo' name symbolInfo
 
 tellRef' :: A.AmbiguousQName -> Ref -> IndexerM ()

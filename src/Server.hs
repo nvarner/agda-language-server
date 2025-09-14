@@ -28,6 +28,7 @@ import Options
 import qualified Server.Handler as Handler
 import Switchboard (Switchboard, agdaCustomMethod)
 import qualified Switchboard
+import Server.Handler.TextDocument.DocumentSymbol (documentSymbolHandler)
 
 #if defined(wasm32_HOST_ARCH)
 import Agda.Utils.IO (catchIO)
@@ -117,6 +118,7 @@ handlers =
         let TRequestMessage _ _ _ (HoverParams (TextDocumentIdentifier uri) pos _workDone) = req
         result <- Handler.onHover uri pos
         responder $ Right result,
+      documentSymbolHandler,
       -- -- syntax highlighting
       -- , requestHandler STextDocumentSemanticTokensFull $ \req responder -> do
       --   result <- Handler.onHighlight (req ^. (params . textDocument . uri))
