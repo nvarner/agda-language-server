@@ -6,6 +6,8 @@ module Monad where
 
 import Agda.IR
 import Agda.Interaction.Base (IOTCM)
+import Agda.Interaction.Library (findProjectRoot)
+import Agda.Interaction.Library.More (tryRunLibM)
 import Agda.TypeChecking.Monad (TCMT)
 import Agda.Utils.Lens (Lens', (^.))
 import Control.Concurrent
@@ -17,7 +19,7 @@ import Data.IORef
     readIORef,
     writeIORef,
   )
-import Data.Maybe (isJust)
+import Data.Maybe (fromMaybe, isJust)
 import Data.Text
   ( Text,
     pack,
@@ -33,9 +35,10 @@ import Server.CommandController (CommandController)
 import qualified Server.CommandController as CommandController
 import Server.Model (Model)
 import qualified Server.Model as Model
-import Server.Model.AgdaLib (AgdaLib)
+import Server.Model.AgdaLib (AgdaLib, agdaLibFromFs, initAgdaLib)
 import Server.ResponseController (ResponseController)
 import qualified Server.ResponseController as ResponseController
+import System.FilePath (takeDirectory)
 
 --------------------------------------------------------------------------------
 
@@ -86,6 +89,29 @@ askModel :: (MonadIO m) => ServerT m Model
 askModel = do
   modelVar <- asks envModel
   liftIO $ readIORef modelVar
+
+modifyModel :: (MonadIO m) => (Model -> Model) -> ServerT m ()
+modifyModel f = do
+  modelVar <- asks envModel
+  liftIO $ modifyIORef' modelVar f
+
+-- | Find cached 'AgdaLib', or else make one from @.agda-lib@ files on the file
+-- system, or else provide a default
+findAgdaLib :: (MonadIO m) => LSP.NormalizedUri -> ServerT m AgdaLib
+findAgdaLib uri = do
+  model <- askModel
+  case Model.getKnownAgdaLib uri model of
+    Just lib -> return lib
+    Nothing -> do
+      lib <- case LSP.uriToFilePath $ LSP.fromNormalizedUri uri of
+        Just path -> do
+          lib <- agdaLibFromFs $ takeDirectory path
+          case lib of
+            Just lib -> return lib
+            Nothing -> initAgdaLib
+        Nothing -> initAgdaLib
+      modifyModel $ Model.withAgdaLib lib
+      return lib
 
 -- | Provider
 provideCommand :: (Monad m, MonadIO m) => IOTCM -> ServerT m ()

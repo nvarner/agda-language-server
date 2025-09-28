@@ -15,7 +15,7 @@ import Indexer (indexFile, withAstFor)
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Server as LSP
 import Monad (runServerT)
-import Server.Model.Monad (withAgdaLibFor)
+import Server.Model.Monad (runWithAgdaLib)
 import System.FilePath (takeBaseName, (</>))
 import Test.Indexer.NoDuplicateDecl (testNoDuplicateDecl)
 import Test.Indexer.NoMissing (testNoMissing)
@@ -35,7 +35,7 @@ tests = do
     (file, interface) <- LSP.runLspT undefined $ do
       env <- TestData.getServerEnv model
       runServerT env $ do
-        interface <- withAgdaLibFor uri $ do
+        interface <- runWithAgdaLib uri $ do
           TCM.liftTCM $ TCM.setCommandLineOptions defaultOptions
           absInPath <- liftIO $ absolute inPath
           let srcFile = SourceFile absInPath
@@ -45,7 +45,7 @@ tests = do
           checkResult <- TCM.liftTCM $ Imp.typeCheckMain Imp.TypeCheck src
           return $ Imp.crInterface checkResult
 
-        ast <- withAgdaLibFor uri $ do
+        ast <- runWithAgdaLib uri $ do
           TCM.liftTCM $ TCM.setCommandLineOptions defaultOptions
           absInPath <- liftIO $ absolute inPath
           let srcFile = SourceFile absInPath
@@ -56,7 +56,7 @@ tests = do
         -- Write the AST to a file for debugging purposes
         liftIO $ writeFile ("test/data/AST" </> testName) $ prettyShow $ topLevelDecls ast
 
-        withAgdaLibFor uri $ do
+        runWithAgdaLib uri $ do
           TCM.liftTCM $ TCM.setCommandLineOptions defaultOptions
           absInPath <- liftIO $ absolute inPath
           let srcFile = SourceFile absInPath

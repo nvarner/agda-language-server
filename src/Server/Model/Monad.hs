@@ -10,11 +10,12 @@
 module Server.Model.Monad
   ( MonadAgdaLib (..),
     useAgdaLib,
+    notificationHandlerWithAgdaLib,
     MonadAgdaFile (..),
     useAgdaFile,
-    withAgdaFile,
+    requestHandlerWithAgdaFile,
     WithAgdaLibM,
-    withAgdaLibFor,
+    runWithAgdaLib,
   )
 where
 
@@ -32,7 +33,7 @@ import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Protocol.Types.Uri.More as LSP
 import Language.LSP.Server (LspM)
 import qualified Language.LSP.Server as LSP
-import Monad (ServerM, ServerT, askModel)
+import Monad (ServerM, ServerT, askModel, findAgdaLib)
 import Options (Config)
 import qualified Server.Model as Model
 import Server.Model.AgdaFile (AgdaFile)
@@ -112,12 +113,28 @@ runWithAgdaLibT agdaLib = flip runReaderT agdaLib . unWithAgdaLibT
 
 type WithAgdaLibM = WithAgdaLibT ServerM
 
-withAgdaLibFor :: LSP.Uri -> WithAgdaLibM a -> ServerM a
-withAgdaLibFor uri x = do
+runWithAgdaLib :: LSP.Uri -> WithAgdaLibM a -> ServerM a
+runWithAgdaLib uri x = do
   let normUri = LSP.toNormalizedUri uri
   model <- askModel
   agdaLib <- Model.getAgdaLib normUri model
   runWithAgdaLibT agdaLib x
+
+type NotificationHandlerWithAgdaLib m =
+  LSP.TNotificationMessage m -> LSP.NormalizedUri -> WithAgdaLibM ()
+
+notificationHandlerWithAgdaLib ::
+  forall (m :: LSP.Method LSP.ClientToServer LSP.Notification) textdoc.
+  (LSP.HasTextDocument (LSP.MessageParams m) textdoc, LSP.HasUri textdoc LSP.Uri) =>
+  LSP.SMethod m ->
+  NotificationHandlerWithAgdaLib m ->
+  LSP.Handlers ServerM
+notificationHandlerWithAgdaLib m handler = LSP.notificationHandler m $ \notification -> do
+  let uri = notification ^. LSP.params . LSP.textDocument . LSP.uri
+      normUri = LSP.toNormalizedUri uri
+
+  agdaLib <- findAgdaLib normUri
+  runWithAgdaLibT agdaLib $ handler notification normUri
 
 instance (MonadIO m) => MonadAgdaLib (WithAgdaLibT m) where
   askAgdaLib = WithAgdaLibT ask
@@ -167,18 +184,18 @@ runWithAgdaFileT agdaLib agdaFile =
 
 type WithAgdaFileM = WithAgdaFileT ServerM
 
-type HandlerWithAgdaFile m =
+type RequestHandlerWithAgdaFile m =
   LSP.TRequestMessage m ->
   (Either (LSP.TResponseError m) (LSP.MessageResult m) -> WithAgdaFileM ()) ->
   WithAgdaFileM ()
 
-withAgdaFile ::
+requestHandlerWithAgdaFile ::
   forall (m :: LSP.Method LSP.ClientToServer LSP.Request).
   (LSP.HasTextDocument (LSP.MessageParams m) LSP.TextDocumentIdentifier) =>
   LSP.SMethod m ->
-  HandlerWithAgdaFile m ->
+  RequestHandlerWithAgdaFile m ->
   LSP.Handlers ServerM
-withAgdaFile m handler = LSP.requestHandler m $ \req responder -> do
+requestHandlerWithAgdaFile m handler = LSP.requestHandler m $ \req responder -> do
   let uri = req ^. LSP.params . LSP.textDocument . LSP.uri
       normUri = LSP.toNormalizedUri uri
 

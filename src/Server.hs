@@ -29,6 +29,7 @@ import qualified Server.Handler as Handler
 import Switchboard (Switchboard, agdaCustomMethod)
 import qualified Switchboard
 import Server.Handler.TextDocument.DocumentSymbol (documentSymbolHandler)
+import Server.Handler.TextDocument.FileManagement (didOpenHandler, didCloseHandler, didSaveHandler)
 
 #if defined(wasm32_HOST_ARCH)
 import Agda.Utils.IO (catchIO)
@@ -129,11 +130,11 @@ handlers =
       -- `workspace/didChangeConfiguration`
       notificationHandler SMethod_WorkspaceDidChangeConfiguration $ \_notification -> return (),
       -- `textDocument/didOpen`
-      notificationHandler SMethod_TextDocumentDidOpen $ \_notification -> return (),
+      didOpenHandler,
       -- `textDocument/didClose`
-      notificationHandler SMethod_TextDocumentDidClose $ \_notification -> return (),
+      didCloseHandler,
       -- `textDocument/didChange`
       notificationHandler SMethod_TextDocumentDidChange $ \_notification -> return (),
       -- `textDocument/didSave`
-      notificationHandler SMethod_TextDocumentDidSave $ \_notification -> return ()
+      didSaveHandler
     ]

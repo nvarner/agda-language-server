@@ -21,7 +21,7 @@ import Options (Config, defaultOptions, initConfig)
 import qualified Server.CommandController as CommandController
 import Server.Model (Model)
 import Server.Model.AgdaLib (agdaLibIncludes)
-import Server.Model.Monad (MonadAgdaLib (askAgdaLib), withAgdaFile)
+import Server.Model.Monad (MonadAgdaLib (askAgdaLib), requestHandlerWithAgdaFile)
 import qualified Server.ResponseController as ResponseController
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit (testCase, (@?), (@?=))
@@ -37,7 +37,7 @@ tests =
             let method = LSP.SMethod_TextDocumentDocumentSymbol
                 message = TestData.documentSymbolMessage TestData.fileUri1
 
-            let handlers = withAgdaFile method $ \req responder -> do
+            let handlers = requestHandlerWithAgdaFile method $ \req responder -> do
                   agdaLib <- askAgdaLib
                   liftIO $ length (agdaLib ^. agdaLibIncludes) @?= 3
                   responder $ Right $ LSP.InL []
@@ -52,7 +52,7 @@ tests =
             let method = LSP.SMethod_TextDocumentDocumentSymbol
                 message = TestData.documentSymbolMessage TestData.fakeUri
 
-            let handlers = withAgdaFile method $ \req responder -> do
+            let handlers = requestHandlerWithAgdaFile method $ \req responder -> do
                   responder $ Right $ LSP.InL []
 
             model <- TestData.getModel
