@@ -39,6 +39,7 @@ usageMessage = usageInfo usage options ++ usageAboutAgdaOptions
 data Options = Options
   { optViaTCP :: Maybe Int,
     optRawAgdaOptions :: [String],
+    optRawResponses :: Bool,
     optSetup :: Bool,
     optHelp :: Bool,
     optVersion :: Bool
@@ -46,7 +47,7 @@ data Options = Options
 
 defaultOptions :: Options
 defaultOptions =
-  Options {optViaTCP = Nothing, optRawAgdaOptions = [], optSetup = False, optHelp = False, optVersion = False}
+  Options {optViaTCP = Nothing, optRawAgdaOptions = [], optRawResponses = False, optSetup = False, optHelp = False, optVersion = False}
 
 options :: [OptDescr (Options -> Options)]
 options =
@@ -66,6 +67,11 @@ options =
           "PORT"
       )
       "talk with the editor via TCP port (4096 as default)",
+    Option
+      []
+      ["raw"]
+      (NoArg (\opts -> opts {optRawResponses = True}))
+      "return all responses in raw JSON format",
 #if MIN_VERSION_Agda(2,8,0)
     Option
       []
