@@ -9,8 +9,11 @@ import Agda.Interaction.Base (IOTCM)
 import Agda.Interaction.Library (findProjectRoot)
 import Agda.Interaction.Library.More (tryRunLibM)
 import Agda.TypeChecking.Monad (TCMT)
+import qualified Agda.TypeChecking.Monad as TCM
 import Agda.Utils.Lens (Lens', (^.))
 import Control.Concurrent
+import Control.Exception (Exception)
+import qualified Control.Exception as E
 import Control.Monad.Reader
 import Data.IORef
   ( IORef,
@@ -30,6 +33,7 @@ import Language.LSP.Server
     MonadLsp,
     getConfig,
   )
+import qualified Language.LSP.Server as LSP
 import Options
 import Server.CommandController (CommandController)
 import qualified Server.CommandController as CommandController
@@ -112,6 +116,12 @@ findAgdaLib uri = do
         Nothing -> initAgdaLib
       modifyModel $ Model.withAgdaLib lib
       return lib
+
+catchTCError :: ServerM a -> (TCM.TCErr -> ServerM a) -> ServerM a
+catchTCError m h =
+  ReaderT $ \env -> LSP.LspT $ ReaderT $ \lspEnv ->
+    LSP.runLspT lspEnv (runServerT env m)
+      `E.catch` \err -> LSP.runLspT lspEnv (runServerT env (h err))
 
 -- | Provider
 provideCommand :: (Monad m, MonadIO m) => IOTCM -> ServerT m ()

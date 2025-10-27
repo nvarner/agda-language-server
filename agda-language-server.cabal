@@ -84,6 +84,7 @@ library
       Server.Model
       Server.Model.AgdaFile
       Server.Model.AgdaLib
+      Server.Model.Handler
       Server.Model.Monad
       Server.Model.Symbol
       Server.ResponseController
@@ -230,6 +231,7 @@ test-suite als-test
       Server.Model
       Server.Model.AgdaFile
       Server.Model.AgdaLib
+      Server.Model.Handler
       Server.Model.Monad
       Server.Model.Symbol
       Server.ResponseController

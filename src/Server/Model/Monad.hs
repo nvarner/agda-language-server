@@ -10,30 +10,37 @@
 module Server.Model.Monad
   ( MonadAgdaLib (..),
     useAgdaLib,
-    notificationHandlerWithAgdaLib,
     MonadAgdaFile (..),
     useAgdaFile,
-    requestHandlerWithAgdaFile,
+    WithAgdaLibT,
+    runWithAgdaLibT,
     WithAgdaLibM,
     runWithAgdaLib,
+    WithAgdaFileT,
+    runWithAgdaFileT,
+    WithAgdaFileM,
   )
 where
 
 import Agda.Interaction.Options (CommandLineOptions (optPragmaOptions), PragmaOptions)
-import Agda.TypeChecking.Monad (HasOptions (..), MonadTCEnv (..), MonadTCM (..), MonadTCState (..), PersistentTCState (stPersistentOptions), ReadTCState (..), TCEnv, TCM, TCMT (..), TCState (stPersistentState), modifyTCLens, setTCLens, stPragmaOptions, useTC)
+import Agda.Syntax.Common.Pretty (prettyShow)
+import Agda.TypeChecking.Monad (HasOptions (..), MonadTCEnv (..), MonadTCM (..), MonadTCState (..), PersistentTCState (stPersistentOptions), ReadTCState (..), TCEnv, TCM, TCMT (..), TCState (stPersistentState), catchError_, modifyTCLens, setTCLens, stPragmaOptions, useTC)
+import qualified Agda.TypeChecking.Monad as TCM
+import qualified Agda.TypeChecking.Pretty as TCM
 import Agda.Utils.IORef (modifyIORef', readIORef, writeIORef)
 import Agda.Utils.Lens (Lens', locally, over, use, view, (<&>), (^.))
 import Agda.Utils.Monad (bracket_)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Reader (MonadReader (local), ReaderT (runReaderT), ask, asks)
 import Control.Monad.Trans (MonadTrans, lift)
+import qualified Data.Text as Text
 import qualified Language.LSP.Protocol.Lens as LSP
 import qualified Language.LSP.Protocol.Message as LSP
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Protocol.Types.Uri.More as LSP
 import Language.LSP.Server (LspM)
 import qualified Language.LSP.Server as LSP
-import Monad (ServerM, ServerT, askModel, findAgdaLib)
+import Monad (ServerM, ServerT, askModel, catchTCError, findAgdaLib)
 import Options (Config)
 import qualified Server.Model as Model
 import Server.Model.AgdaFile (AgdaFile)
@@ -120,22 +127,6 @@ runWithAgdaLib uri x = do
   agdaLib <- Model.getAgdaLib normUri model
   runWithAgdaLibT agdaLib x
 
-type NotificationHandlerWithAgdaLib m =
-  LSP.TNotificationMessage m -> LSP.NormalizedUri -> WithAgdaLibM ()
-
-notificationHandlerWithAgdaLib ::
-  forall (m :: LSP.Method LSP.ClientToServer LSP.Notification) textdoc.
-  (LSP.HasTextDocument (LSP.MessageParams m) textdoc, LSP.HasUri textdoc LSP.Uri) =>
-  LSP.SMethod m ->
-  NotificationHandlerWithAgdaLib m ->
-  LSP.Handlers ServerM
-notificationHandlerWithAgdaLib m handler = LSP.notificationHandler m $ \notification -> do
-  let uri = notification ^. LSP.params . LSP.textDocument . LSP.uri
-      normUri = LSP.toNormalizedUri uri
-
-  agdaLib <- findAgdaLib normUri
-  runWithAgdaLibT agdaLib $ handler notification normUri
-
 instance (MonadIO m) => MonadAgdaLib (WithAgdaLibT m) where
   askAgdaLib = WithAgdaLibT ask
   localAgdaLib f = WithAgdaLibT . local f . unWithAgdaLibT
@@ -183,31 +174,6 @@ runWithAgdaFileT agdaLib agdaFile =
    in flip runReaderT env . unWithAgdaFileT
 
 type WithAgdaFileM = WithAgdaFileT ServerM
-
-type RequestHandlerWithAgdaFile m =
-  LSP.TRequestMessage m ->
-  (Either (LSP.TResponseError m) (LSP.MessageResult m) -> WithAgdaFileM ()) ->
-  WithAgdaFileM ()
-
-requestHandlerWithAgdaFile ::
-  forall (m :: LSP.Method LSP.ClientToServer LSP.Request).
-  (LSP.HasTextDocument (LSP.MessageParams m) LSP.TextDocumentIdentifier) =>
-  LSP.SMethod m ->
-  RequestHandlerWithAgdaFile m ->
-  LSP.Handlers ServerM
-requestHandlerWithAgdaFile m handler = LSP.requestHandler m $ \req responder -> do
-  let uri = req ^. LSP.params . LSP.textDocument . LSP.uri
-      normUri = LSP.toNormalizedUri uri
-
-  model <- askModel
-  case Model.getAgdaFile normUri model of
-    Nothing -> do
-      let message = "Request for unknown Agda file at URI: " <> LSP.getUri uri
-      responder $ Left $ LSP.TResponseError (LSP.InR LSP.ErrorCodes_InvalidParams) message Nothing
-    Just agdaFile -> do
-      agdaLib <- Model.getAgdaLib normUri model
-      let responder' = lift . responder
-      runWithAgdaFileT agdaLib agdaFile $ handler req responder'
 
 instance (MonadIO m) => MonadAgdaLib (WithAgdaFileT m) where
   askAgdaLib = WithAgdaFileT $ view withAgdaFileEnvAgdaLib

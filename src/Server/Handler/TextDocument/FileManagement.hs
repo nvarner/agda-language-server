@@ -20,10 +20,10 @@ import qualified Language.LSP.Server as VFS
 import qualified Language.LSP.VFS as VFS
 import Monad (ServerM, modifyModel)
 import qualified Server.Model as Model
-import Server.Model.Monad (notificationHandlerWithAgdaLib)
+import Server.Model.Handler (notificationHandlerWithAgdaLib)
 
 didOpenHandler :: LSP.Handlers ServerM
-didOpenHandler = notificationHandlerWithAgdaLib LSP.SMethod_TextDocumentDidOpen $ \notification uri -> do
+didOpenHandler = notificationHandlerWithAgdaLib LSP.SMethod_TextDocumentDidOpen $ \uri notification -> do
   sourceFile <- SourceFile <$> uriToPossiblyInvalidAbsolutePath uri
   let sourceText = toLazy $ notification ^. LSP.params . LSP.textDocument . LSP.text
   src <- liftTCM $ Imp.parseVirtualSource sourceFile sourceText
@@ -31,11 +31,11 @@ didOpenHandler = notificationHandlerWithAgdaLib LSP.SMethod_TextDocumentDidOpen 
   lift $ modifyModel $ Model.setAgdaFile uri agdaFile
 
 didCloseHandler :: LSP.Handlers ServerM
-didCloseHandler = notificationHandlerWithAgdaLib LSP.SMethod_TextDocumentDidClose $ \notification uri -> do
+didCloseHandler = notificationHandlerWithAgdaLib LSP.SMethod_TextDocumentDidClose $ \uri notification -> do
   lift $ modifyModel $ Model.deleteAgdaFile uri
 
 didSaveHandler :: LSP.Handlers ServerM
-didSaveHandler = notificationHandlerWithAgdaLib LSP.SMethod_TextDocumentDidSave $ \notification uri -> do
+didSaveHandler = notificationHandlerWithAgdaLib LSP.SMethod_TextDocumentDidSave $ \uri notification -> do
   sourceFile <- SourceFile <$> uriToPossiblyInvalidAbsolutePath uri
   virtualFile <- lift $ VFS.getVirtualFile uri
   case virtualFile of
