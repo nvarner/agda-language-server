@@ -81,7 +81,7 @@ instance Semigroup SymbolInfo where
       (symbolParent old <|> symbolParent new)
 
 symbolShortName :: SymbolInfo -> Text
-symbolShortName = Text.pack . prettyShow . symbolName
+symbolShortName = Text.pack . prettyShow . A.qnameName . symbolName
 
 lspSymbolKind :: SymbolInfo -> LSP.SymbolKind
 lspSymbolKind = toLspSymbolKind . symbolKind
