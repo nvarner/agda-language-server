@@ -39,7 +39,6 @@ import Agda.Syntax.Position
   ( Range,
     Range' (Range),
     RangeFile,
-    beginningOfFile,
     getRange,
     intervalToRange,
     mkRangeFile,
@@ -47,6 +46,7 @@ import Agda.Syntax.Position
     posToRange',
     startPos,
 #if MIN_VERSION_Agda(2,8,0)
+    beginningOfFile,
     rangeFromAbsolutePath,
 #endif
   )
@@ -58,8 +58,7 @@ import Agda.Syntax.TopLevelModuleName (
 #endif
   )
 import Agda.TypeChecking.Monad
-  ( AbsolutePath,
-    Interface,
+  ( Interface,
     TCM,
     checkAndSetOptionsFromPragma,
     setCurrentRange,
@@ -78,6 +77,7 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 #else
 import Agda.TypeChecking.Warnings (runPM)
 #endif
+import Agda.Utils.FileName (AbsolutePath)
 import Agda.Utils.Monad (bracket_)
 #if MIN_VERSION_Agda(2,8,0)
 import qualified Data.Text as T

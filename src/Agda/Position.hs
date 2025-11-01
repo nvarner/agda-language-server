@@ -24,6 +24,7 @@ import qualified Data.Strict.Maybe as Strict
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Language.LSP.Protocol.Types as LSP
+import Data.Functor (void)
 
 -- Note:  LSP srclocs are 0-base
 --        Agda srclocs are 1-base
@@ -73,8 +74,8 @@ intervalEnd :: Interval -> PositionWithoutFile
 intervalStart (Interval _ start _end) = start
 intervalEnd (Interval _ _start end) = end
 #else
-intervalStart (Interval start _end) = start
-intervalEnd (Interval _start end) = end
+intervalStart (Interval start _end) = void start
+intervalEnd (Interval _start end) = void end
 #endif
 
 -- | Agda Range -> LSP Range
