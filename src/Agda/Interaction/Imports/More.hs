@@ -1,9 +1,12 @@
 {-# LANGUAGE CPP #-}
 
 module Agda.Interaction.Imports.More
-  ( parseVirtualSource,
-    setOptionsFromSourcePragmas,
+  ( setOptionsFromSourcePragmas,
     checkModuleName',
+    runPMDropWarnings,
+    moduleName,
+    runPM,
+    beginningOfFile,
   )
 where
 
@@ -92,38 +95,6 @@ import Agda.Utils.Singleton (singleton)
 #else
 import Agda.Syntax.Common.Pretty (pretty)
 #endif
-
--- | Parse a source file without talking to the filesystem
-parseVirtualSource ::
-  -- | Logical path of the source file. Used in ranges, not filesystem access.
-  SourceFile ->
-  -- | Logical contents of the source file
-  TL.Text ->
-  TCM Imp.Source
-parseVirtualSource sourceFile source = Bench.billTo [Bench.Parsing] $ do
-  f <- srcFilePath sourceFile
-  let rf0 = mkRangeFile f Nothing
-  setCurrentRange (beginningOfFile rf0) $ do
-    parsedModName0 <- moduleName f . fst . fst =<< do
-      runPMDropWarnings $ parseFile moduleParser rf0 $ TL.unpack source
-
-    let rf = mkRangeFile f $ Just parsedModName0
-    ((parsedMod, attrs), fileType) <- runPM $ parseFile moduleParser rf $ TL.unpack source
-    parsedModName <- moduleName f parsedMod
-
-    -- TODO: handle libs properly
-    let libs = []
-
-    return
-      Source
-        { srcText = source,
-          srcFileType = fileType,
-          srcOrigin = sourceFile,
-          srcModule = parsedMod,
-          srcModuleName = parsedModName,
-          srcProjectLibs = libs,
-          srcAttributes = attrs
-        }
 
 srcFilePath :: SourceFile -> TCM AbsolutePath
 #if MIN_VERSION_Agda(2,8,0)

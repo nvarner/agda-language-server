@@ -50,6 +50,7 @@ library
       Agda
       Agda.Convert
       Agda.Interaction.Imports.More
+      Agda.Interaction.Imports.Virtual
       Agda.Interaction.Library.More
       Agda.IR
       Agda.Parser
@@ -198,6 +199,7 @@ test-suite als-test
       Agda
       Agda.Convert
       Agda.Interaction.Imports.More
+      Agda.Interaction.Imports.Virtual
       Agda.Interaction.Library.More
       Agda.IR
       Agda.Parser

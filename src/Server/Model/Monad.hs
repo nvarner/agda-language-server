@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -45,6 +46,9 @@ import Options (Config)
 import qualified Server.Model as Model
 import Server.Model.AgdaFile (AgdaFile)
 import Server.Model.AgdaLib (AgdaLib, agdaLibTcEnv, agdaLibTcStateRef)
+#if MIN_VERSION_Agda(2,8,0)
+import Agda.Utils.FileId (File, getIdFile)
+#endif
 
 --------------------------------------------------------------------------------
 
@@ -110,6 +114,16 @@ defaultLiftTCM (TCM f) = do
   tcEnv <- useAgdaLib agdaLibTcEnv
   liftIO $ f tcStateRef tcEnv
 
+#if MIN_VERSION_Agda(2,8,0)
+-- Taken from TCMT implementation
+defaultFileFromId :: (MonadAgdaLib m) => TCM.FileId -> m File
+defaultFileFromId fi = useTC TCM.stFileDict <&> (`getIdFile` fi)
+
+-- Taken from TCMT implementation
+defaultIdFromFile :: (MonadAgdaLib m) => File -> m TCM.FileId
+defaultIdFromFile = TCM.stateTCLens TCM.stFileDict . TCM.registerFileIdWithBuiltin
+#endif
+
 --------------------------------------------------------------------------------
 
 newtype WithAgdaLibT m a = WithAgdaLibT {unWithAgdaLibT :: ReaderT AgdaLib m a}
@@ -150,6 +164,12 @@ instance (MonadIO m) => HasOptions (WithAgdaLibT m) where
 
 instance (MonadIO m) => MonadTCM (WithAgdaLibT m) where
   liftTCM = defaultLiftTCM
+
+#if MIN_VERSION_Agda(2,8,0)
+instance (MonadIO m) => TCM.MonadFileId (WithAgdaLibT m) where
+  fileFromId = defaultFileFromId
+  idFromFile = defaultIdFromFile
+#endif
 
 --------------------------------------------------------------------------------
 

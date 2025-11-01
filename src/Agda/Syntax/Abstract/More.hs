@@ -170,7 +170,6 @@ instance Pretty LetBinding where
       text "let" <+> pretty (unBind name) <+> text "=" <+> pretty expr
     LetPatBind _letInfo pat expr ->
       text "letPat" <+> pretty pat <+> text "=" <+> pretty expr
-    LetDeclaredVariable name -> text "letDeclared" <+> pretty (unBind name)
     _ -> text "LetBinding"
 
 instance Pretty Binder where
