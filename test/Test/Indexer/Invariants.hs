@@ -22,49 +22,14 @@ import Test.Indexer.NoMissing (testNoMissing)
 import Test.Indexer.NoOverlap (testNoOverlap)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Golden (findByExtension)
+import TestData (AgdaFileDetails (AgdaFileDetails))
 import qualified TestData
 
 tests :: IO TestTree
 tests = do
   inPaths <- findByExtension [".agda"] "test/data/Indexer"
   files <- forM inPaths $ \inPath -> do
-    let testName = takeBaseName inPath
-        uri = LSP.filePathToUri inPath
-    model <- TestData.getModel
-
-    (file, interface) <- LSP.runLspT undefined $ do
-      env <- TestData.getServerEnv model
-      runServerT env $ do
-        interface <- runWithAgdaLib uri $ do
-          TCM.liftTCM $ TCM.setCommandLineOptions defaultOptions
-          absInPath <- liftIO $ absolute inPath
-          let srcFile = SourceFile absInPath
-          src <- TCM.liftTCM $ Imp.parseSource srcFile
-
-          TCM.modifyTCLens TCM.stModuleToSource $ Map.insert (Imp.srcModuleName src) (srcFilePath $ Imp.srcOrigin src)
-          checkResult <- TCM.liftTCM $ Imp.typeCheckMain Imp.TypeCheck src
-          return $ Imp.crInterface checkResult
-
-        ast <- runWithAgdaLib uri $ do
-          TCM.liftTCM $ TCM.setCommandLineOptions defaultOptions
-          absInPath <- liftIO $ absolute inPath
-          let srcFile = SourceFile absInPath
-          src <- TCM.liftTCM $ Imp.parseSource srcFile
-
-          withAstFor src return
-
-        -- Write the AST to a file for debugging purposes
-        liftIO $ writeFile ("test/data/AST" </> testName) $ prettyShow $ topLevelDecls ast
-
-        runWithAgdaLib uri $ do
-          TCM.liftTCM $ TCM.setCommandLineOptions defaultOptions
-          absInPath <- liftIO $ absolute inPath
-          let srcFile = SourceFile absInPath
-          src <- TCM.liftTCM $ Imp.parseSource srcFile
-
-          agdaFile <- indexFile src
-          return (agdaFile, interface)
-
+    TestData.AgdaFileDetails testName file interface <- TestData.agdaFileDetails inPath
     return (testName, file, interface)
 
   return $

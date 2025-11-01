@@ -12,6 +12,7 @@ import Test.Tasty.Options
 import qualified Test.Model as Model
 import qualified Test.ModelMonad as ModelMonad
 import qualified Test.Indexer.Invariants as IndexerInvariants
+import qualified Test.Indexer.NoAnonFunSymbol as NoAnonFunSymbol
 
 -- Define the custom option
 newtype AlsPathOption = AlsPathOption FilePath
@@ -39,7 +40,8 @@ tests = do
         LSP.tests alsPath,
         Model.tests,
         ModelMonad.tests,
-        indexerInvariantsTest
+        indexerInvariantsTest,
+        NoAnonFunSymbol.tests
 #if defined(wasm32_HOST_ARCH)
       , WASM.tests alsPath
 #endif

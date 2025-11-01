@@ -8,23 +8,83 @@ module TestData
     fileUri3,
     fakeUri,
     getServerEnv,
+    AgdaFileDetails (..),
+    agdaFileDetails,
   )
 where
 
+import Agda.Interaction.FindFile (SourceFile (SourceFile), srcFilePath)
+import qualified Agda.Interaction.Imports as Imp
+import qualified Agda.Interaction.Options
+import Agda.Syntax.Abstract.More ()
+import Agda.Syntax.Common.Pretty (prettyShow)
+import Agda.Syntax.Translation.ConcreteToAbstract (topLevelDecls)
+import qualified Agda.TypeChecking.Monad as TCM
+import Agda.Utils.FileName (absolute)
 import Agda.Utils.IORef (newIORef)
 import Agda.Utils.Lens (set, (<&>))
 import Control.Concurrent (newChan)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import qualified Data.Map as Map
+import Indexer (indexFile, withAstFor)
 import qualified Language.LSP.Protocol.Message as LSP
 import qualified Language.LSP.Protocol.Types as LSP
-import Monad (Env (Env))
+import qualified Language.LSP.Server as LSP
+import Monad (Env (Env), runServerT)
 import Options (defaultOptions, initConfig)
 import qualified Server.CommandController as CommandController
 import Server.Model (Model (Model))
-import Server.Model.AgdaFile (emptyAgdaFile)
+import Server.Model.AgdaFile (AgdaFile, emptyAgdaFile)
 import Server.Model.AgdaLib (agdaLibIncludes, initAgdaLib)
+import Server.Model.Monad (runWithAgdaLib)
 import qualified Server.ResponseController as ResponseController
+import System.FilePath (takeBaseName, (</>))
+
+data AgdaFileDetails = AgdaFileDetails
+  { fileName :: String,
+    agdaFile :: AgdaFile,
+    interface :: TCM.Interface
+  }
+
+agdaFileDetails :: FilePath -> IO AgdaFileDetails
+agdaFileDetails inPath = do
+  let testName = takeBaseName inPath
+      uri = LSP.filePathToUri inPath
+  model <- TestData.getModel
+
+  (file, interface) <- LSP.runLspT undefined $ do
+    env <- TestData.getServerEnv model
+    runServerT env $ do
+      interface <- runWithAgdaLib uri $ do
+        TCM.liftTCM $ TCM.setCommandLineOptions Agda.Interaction.Options.defaultOptions
+        absInPath <- liftIO $ absolute inPath
+        let srcFile = SourceFile absInPath
+        src <- TCM.liftTCM $ Imp.parseSource srcFile
+
+        TCM.modifyTCLens TCM.stModuleToSource $ Map.insert (Imp.srcModuleName src) (srcFilePath $ Imp.srcOrigin src)
+        checkResult <- TCM.liftTCM $ Imp.typeCheckMain Imp.TypeCheck src
+        return $ Imp.crInterface checkResult
+
+      ast <- runWithAgdaLib uri $ do
+        TCM.liftTCM $ TCM.setCommandLineOptions Agda.Interaction.Options.defaultOptions
+        absInPath <- liftIO $ absolute inPath
+        let srcFile = SourceFile absInPath
+        src <- TCM.liftTCM $ Imp.parseSource srcFile
+
+        withAstFor src return
+
+      runWithAgdaLib uri $ do
+        TCM.liftTCM $ TCM.setCommandLineOptions Agda.Interaction.Options.defaultOptions
+        absInPath <- liftIO $ absolute inPath
+        let srcFile = SourceFile absInPath
+        src <- TCM.liftTCM $ Imp.parseSource srcFile
+
+        agdaFile <- indexFile src
+        return (agdaFile, interface)
+
+  return $ AgdaFileDetails testName file interface
+
+--------------------------------------------------------------------------------
 
 documentSymbolMessage :: LSP.NormalizedUri -> LSP.TRequestMessage LSP.Method_TextDocumentDocumentSymbol
 documentSymbolMessage uri =

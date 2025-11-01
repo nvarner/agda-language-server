@@ -22,6 +22,7 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe (whenJust)
 import Agda.Utils.Monad (when)
 import Data.Foldable (forM_, traverse_)
+import Data.Functor.Compose (Compose (Compose, getCompose))
 import qualified Data.Set as Set
 import Data.Void (absurd)
 import Indexer.Monad
@@ -100,7 +101,7 @@ instance Indexable A.Declaration where
     A.FunDef _defInfo name clauses -> withBindingKind DefBinding $ do
       -- function declarations are captured by the `Axiom` case
       withParent name $ do
-        index clauses
+        index $ WithLHSNaming LHSNamed <$> clauses
     A.DataSig defInfo _erased name genTel type' ->
       withBindingKind DeclBinding $ do
         tellDecl name Data type'
@@ -200,7 +201,7 @@ instance Indexable A.Expr where
       return ()
     A.ExtendedLam _exprInfo defInfo _erased _generatedFn clauses -> do
       index defInfo
-      index clauses
+      index $ WithLHSNaming LHSAnonymous <$> clauses
     A.Pi _exprInfo tel type' -> do
       index tel
       index type'
@@ -335,28 +336,33 @@ instance Indexable A.WhereDeclarations where
     A.WhereDecls Nothing _ decl ->
       index decl
 
-instance (Indexable a) => Indexable (A.LHSCore' a) where
-  index core = case core of
+data LHSNaming = LHSNamed | LHSAnonymous deriving (Eq)
+
+data WithLHSNaming a = WithLHSNaming LHSNaming a
+
+instance (Indexable a) => Indexable (WithLHSNaming (A.LHSCore' a)) where
+  index (WithLHSNaming lhsNaming core) = case core of
     A.LHSHead name pats -> do
-      tellDef name Param UnknownType
+      when (lhsNaming == LHSNamed) $
+        tellDef name Param UnknownType
       indexNamedArgs name pats
     A.LHSProj destructor focus pats -> do
       tellUsage destructor
       -- TODO: what does the named arg in `focus` mean?
-      indexNamedArgs destructor [focus]
+      indexNamedArgs destructor [getCompose $ WithLHSNaming lhsNaming <$> Compose focus]
       indexNamedArgs destructor pats
     A.LHSWith lhsHead withPatterns pats -> do
-      index lhsHead
+      index $ WithLHSNaming lhsNaming lhsHead
       index withPatterns
       -- TODO: what do the named args mean?
       forM_ pats $ \(C.Arg argInfo (C.Named _name pat)) ->
         when (C.argInfoOrigin argInfo == C.UserWritten) $
           index pat
 
-instance Indexable A.LHS where
-  index (A.LHS lhsInfo core) = case Info.lhsEllipsis lhsInfo of
+instance Indexable (WithLHSNaming A.LHS) where
+  index (WithLHSNaming lhsNaming (A.LHS lhsInfo core)) = case Info.lhsEllipsis lhsInfo of
     C.ExpandedEllipsis _range _withArgs -> return ()
-    C.NoEllipsis -> index core
+    C.NoEllipsis -> index $ WithLHSNaming lhsNaming core
 
 instance Indexable A.RewriteEqn where
   index eqn = case eqn of
@@ -382,15 +388,15 @@ instance Indexable A.RHS where
       return ()
     A.WithRHS _generatedFn withExprs clauses -> do
       forM_ withExprs indexWithExpr
-      index clauses
+      index $ WithLHSNaming LHSAnonymous <$> clauses
     A.RewriteRHS rewriteExprs _strippedPats rewriteRhs whereDecls -> do
       index rewriteExprs
       index rewriteRhs
       index whereDecls
 
-instance (Indexable a) => Indexable (A.Clause' a) where
-  index (A.Clause lhs _strippedPats rhs whereDecls _catchall) = do
-    index lhs
+instance Indexable (WithLHSNaming A.Clause) where
+  index (WithLHSNaming lhsNaming (A.Clause lhs _strippedPats rhs whereDecls _catchall)) = do
+    index $ WithLHSNaming lhsNaming lhs
     index rhs
     index whereDecls
 
