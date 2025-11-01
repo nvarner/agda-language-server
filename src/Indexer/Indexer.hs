@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -21,7 +22,7 @@ import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe (whenJust)
 import Agda.Utils.Monad (when)
-import Data.Foldable (forM_, traverse_)
+import Data.Foldable (forM_, traverse_, toList)
 import Data.Functor.Compose (Compose (Compose, getCompose))
 import qualified Data.Set as Set
 import Data.Void (absurd)
@@ -213,9 +214,17 @@ instance Indexable A.Expr where
     A.Let _exprInfo bindings body -> do
       index bindings
       index body
+#if MIN_VERSION_Agda(2,8,0)
+    A.Rec _kwRange _exprInfo recAssigns ->
+#else
     A.Rec _exprInfo recAssigns ->
+#endif
       index recAssigns
+#if MIN_VERSION_Agda(2,8,0)
+    A.RecUpdate _kwRange _exprInfo exprRec assigns -> do
+#else
     A.RecUpdate _exprInfo exprRec assigns -> do
+#endif
       index exprRec
       index assigns
     A.ScopedExpr _scope expr' ->
@@ -269,11 +278,18 @@ instance (Indexable a) => Indexable (A.Pattern' a) where
         index rhs
     A.WithP _patInfo pat' ->
       index pat'
+#if MIN_VERSION_Agda(2,8,0)
+    A.RecP _kwRange _conPatInfo fieldAssignments ->
+#else
     A.RecP _conPatInfo fieldAssignments ->
+#endif
       index fieldAssignments
+#if MIN_VERSION_Agda(2,8,0)
+#else
     A.AnnP _patInfo type' pat' -> do
       index type'
       index pat'
+#endif
 
 instance (Indexable a) => Indexable (Maybe a)
 
@@ -452,19 +468,35 @@ instance Indexable A.LetBinding where
     A.LetOpen _moduleInfo moduleName importDirective -> do
       tellUsage moduleName
       index importDirective
+#if MIN_VERSION_Agda(2,8,0)
+    A.LetAxiom _letInfo _argInfo boundName type' -> do
+      -- TODO: what does the `ArgInfo` mean?
+      tellBinding boundName Axiom type'
+      index type'
+#else
     A.LetDeclaredVariable boundName ->
       -- This is always a declaration
       tellDecl boundName Local UnknownType
+#endif
 
 indexNamedArgBinder ::
   (TypeLike t, HasParamNames t) =>
   C.NamedArg A.Binder -> t -> IndexerM ()
+#if MIN_VERSION_Agda(2,8,0)
+indexNamedArgBinder
+  (C.Arg argInfo (C.Named _maybeArgName (A.Binder pat nameOrigin name)))
+  typeLike =
+    when (C.argInfoOrigin argInfo == C.UserWritten && nameOrigin == C.UserBinderName) $ do
+      tellBinding name Param typeLike
+      index pat
+#else
 indexNamedArgBinder
   (C.Arg argInfo (C.Named _maybeArgName (A.Binder pat name)))
   typeLike =
     when (C.argInfoOrigin argInfo == C.UserWritten) $ do
       tellBinding name Param typeLike
       index pat
+#endif
 
 instance Indexable A.TypedBinding where
   index = \case
@@ -492,7 +524,11 @@ instance Indexable A.DataDefParams where
 
 instance Indexable A.RecordDirectives where
   index = \case
+#if MIN_VERSION_Agda(2,8,0)
+    (C.RecordDirectives inductive _hasEta _patRange (A.NamedRecCon conName)) ->
+#else
     (C.RecordDirectives inductive _hasEta _patRange (Just conName)) ->
+#endif
       tellDef conName (constructorSymbolKind inductive) UnknownType
     _noUserConstructor -> return ()
     where
@@ -606,7 +642,11 @@ instance SymbolKindLike TCM.Defn where
   toSymbolKind = \case
     TCM.AxiomDefn _axiomData -> Axiom
     TCM.DataOrRecSigDefn _dataOrRecSigData -> Unknown
+#if MIN_VERSION_Agda(2,8,0)
+    TCM.GeneralizableVar _numGeneralizableArgs -> GeneralizeVar
+#else
     TCM.GeneralizableVar -> GeneralizeVar
+#endif
     TCM.AbstractDefn defn -> toSymbolKind defn
     TCM.FunctionDefn _functionData -> Fun
     TCM.DatatypeDefn _datatypeData -> Data
@@ -637,7 +677,7 @@ instance HasParamNames A.Type where
       getParamNames tel <> getParamNames codom
     A.Fun _exprInfo _dom codom -> getParamNames codom
     A.Generalized varNames codom ->
-      Set.toList varNames <> getParamNames codom
+      toList varNames <> getParamNames codom
     A.ScopedExpr _scopeInfo expr -> getParamNames expr
     _noMoreParams -> []
 
