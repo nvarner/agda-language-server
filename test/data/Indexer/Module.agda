@@ -1,4 +1,4 @@
-module Module where
+module Indexer.Module where
 
 data Nat : Set where
   zero : Nat

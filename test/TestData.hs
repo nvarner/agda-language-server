@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 
 module TestData
@@ -13,7 +14,13 @@ module TestData
   )
 where
 
-import Agda.Interaction.FindFile (SourceFile (SourceFile), srcFilePath)
+import Agda.Interaction.FindFile
+  ( SourceFile (SourceFile),
+#if MIN_VERSION_Agda(2,8,0)
+#else
+    srcFilePath,
+#endif
+  )
 import qualified Agda.Interaction.Imports as Imp
 import qualified Agda.Interaction.Options
 import Agda.Syntax.Abstract.More ()
@@ -26,11 +33,11 @@ import Agda.Utils.Lens (set, (<&>))
 import Control.Concurrent (newChan)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import qualified Data.Map as Map
-import Indexer (indexFile, withAstFor)
+import Indexer (indexFile, withAstFor, usingSrcAsCurrent)
 import qualified Language.LSP.Protocol.Message as LSP
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Server as LSP
-import Monad (Env (Env), runServerT)
+import Monad (Env (Env), runServerT, catchTCError)
 import Options (defaultOptions, initConfig)
 import qualified Server.CommandController as CommandController
 import Server.Model (Model (Model))
@@ -39,6 +46,7 @@ import Server.Model.AgdaLib (agdaLibIncludes, initAgdaLib)
 import Server.Model.Monad (runWithAgdaLib)
 import qualified Server.ResponseController as ResponseController
 import System.FilePath (takeBaseName, (</>))
+import Agda.TypeChecking.Pretty (prettyTCM)
 
 data AgdaFileDetails = AgdaFileDetails
   { fileName :: String,
@@ -55,32 +63,29 @@ agdaFileDetails inPath = do
   (file, interface) <- LSP.runLspT undefined $ do
     env <- TestData.getServerEnv model
     runServerT env $ do
-      interface <- runWithAgdaLib uri $ do
-        TCM.liftTCM $ TCM.setCommandLineOptions Agda.Interaction.Options.defaultOptions
-        absInPath <- liftIO $ absolute inPath
-        let srcFile = SourceFile absInPath
-        src <- TCM.liftTCM $ Imp.parseSource srcFile
+      let withSrc f = runWithAgdaLib uri $ do
+            TCM.liftTCM $ TCM.setCommandLineOptions Agda.Interaction.Options.defaultOptions
+            absInPath <- liftIO $ absolute inPath
+#if MIN_VERSION_Agda(2,8,0)
+            srcFile <- TCM.srcFromPath absInPath
+#else
+            let srcFile = SourceFile absInPath
+#endif
+            src <- TCM.liftTCM $ Imp.parseSource srcFile
 
-        TCM.modifyTCLens TCM.stModuleToSource $ Map.insert (Imp.srcModuleName src) (srcFilePath $ Imp.srcOrigin src)
+            f src
+
+      let onErr = \err -> runWithAgdaLib uri $ do
+            t <- TCM.liftTCM $ prettyTCM err
+            error $ prettyShow t
+
+      interface <- (withSrc $ \src -> usingSrcAsCurrent src $ do
         checkResult <- TCM.liftTCM $ Imp.typeCheckMain Imp.TypeCheck src
-        return $ Imp.crInterface checkResult
+        return $ Imp.crInterface checkResult) `catchTCError` onErr
 
-      ast <- runWithAgdaLib uri $ do
-        TCM.liftTCM $ TCM.setCommandLineOptions Agda.Interaction.Options.defaultOptions
-        absInPath <- liftIO $ absolute inPath
-        let srcFile = SourceFile absInPath
-        src <- TCM.liftTCM $ Imp.parseSource srcFile
+      file <- withSrc indexFile `catchTCError` onErr
 
-        withAstFor src return
-
-      runWithAgdaLib uri $ do
-        TCM.liftTCM $ TCM.setCommandLineOptions Agda.Interaction.Options.defaultOptions
-        absInPath <- liftIO $ absolute inPath
-        let srcFile = SourceFile absInPath
-        src <- TCM.liftTCM $ Imp.parseSource srcFile
-
-        agdaFile <- indexFile src
-        return (agdaFile, interface)
+      return (file, interface)
 
   return $ AgdaFileDetails testName file interface
 

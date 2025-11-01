@@ -2,6 +2,7 @@
 
 module Indexer
   ( withAstFor,
+    usingSrcAsCurrent,
     indexFile,
   )
 where
@@ -21,9 +22,9 @@ import Indexer.Postprocess (postprocess)
 import Server.Model.AgdaFile (AgdaFile)
 import Server.Model.Monad (WithAgdaLibM)
 
-withAstFor :: Imp.Source -> (TopLevelInfo -> WithAgdaLibM a) -> WithAgdaLibM a
+usingSrcAsCurrent :: Imp.Source -> WithAgdaLibM a -> WithAgdaLibM a
 #if MIN_VERSION_Agda(2,8,0)
-withAstFor src f = do
+usingSrcAsCurrent src x = do
   TCM.liftTCM $
     TCM.setCurrentRange (C.modPragmas . Imp.srcModule $ src) $
       -- Now reset the options
@@ -31,16 +32,9 @@ withAstFor src f = do
 
   TCM.modifyTCLens TCM.stModuleToSourceId $ Map.insert (Imp.srcModuleName src) (Imp.srcOrigin src)
 
-  TCM.localTC (\e -> e {TCM.envCurrentPath = Just (TCM.srcFileId $ Imp.srcOrigin src)}) $ do
-    let topLevel =
-          TopLevel
-            (Imp.srcOrigin src)
-            (Imp.srcModuleName src)
-            (C.modDecls $ Imp.srcModule src)
-    ast <- TCM.liftTCM $ toAbstract topLevel
-    f ast
+  TCM.localTC (\e -> e {TCM.envCurrentPath = Just (TCM.srcFileId $ Imp.srcOrigin src)}) x
 #else
-withAstFor src f = do
+usingSrcAsCurrent src x = do
   TCM.liftTCM $
     TCM.setCurrentRange (C.modPragmas . Imp.srcModule $ src) $
       -- Now reset the options
@@ -48,14 +42,28 @@ withAstFor src f = do
 
   TCM.modifyTCLens TCM.stModuleToSource $ Map.insert (Imp.srcModuleName src) (srcFilePath $ Imp.srcOrigin src)
 
-  TCM.localTC (\e -> e {TCM.envCurrentPath = Just (srcFilePath $ Imp.srcOrigin src)}) $ do
-    let topLevel =
-          TopLevel
-            (srcFilePath $ Imp.srcOrigin src)
-            (Imp.srcModuleName src)
-            (C.modDecls $ Imp.srcModule src)
-    ast <- TCM.liftTCM $ toAbstract topLevel
-    f ast
+  TCM.localTC (\e -> e {TCM.envCurrentPath = Just (srcFilePath $ Imp.srcOrigin src)}) x
+#endif
+
+withAstFor :: Imp.Source -> (TopLevelInfo -> WithAgdaLibM a) -> WithAgdaLibM a
+#if MIN_VERSION_Agda(2,8,0)
+withAstFor src f = usingSrcAsCurrent src $ do
+  let topLevel =
+        TopLevel
+          (Imp.srcOrigin src)
+          (Imp.srcModuleName src)
+          (C.modDecls $ Imp.srcModule src)
+  ast <- TCM.liftTCM $ toAbstract topLevel
+  f ast
+#else
+withAstFor src f = usingSrcAsCurrent src $ do
+  let topLevel =
+        TopLevel
+          (srcFilePath $ Imp.srcOrigin src)
+          (Imp.srcModuleName src)
+          (C.modDecls $ Imp.srcModule src)
+  ast <- TCM.liftTCM $ toAbstract topLevel
+  f ast
 #endif
 
 indexFile ::
