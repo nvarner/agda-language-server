@@ -4,6 +4,7 @@
 module Agda.Interaction.Imports.Virtual
   ( VSourceFile (..),
     vSrcFromUri,
+    parseSourceFromContents,
     parseVSource,
   )
 where
@@ -38,14 +39,19 @@ data VSourceFile = VSourceFile
   }
 
 #if MIN_VERSION_Agda(2,8,0)
+srcFilePath :: (TCM.MonadFileId m) => SourceFile -> m AbsolutePath
+srcFilePath = TCM.srcFilePath
+#else
+srcFilePath :: (Monad m) => SourceFile -> m AbsolutePath
+srcFilePath (SourceFile path) = return path
+#endif
+
+#if MIN_VERSION_Agda(2,8,0)
 vSrcFilePath :: (TCM.MonadFileId m) => VSourceFile -> m AbsolutePath
-vSrcFilePath = TCM.srcFilePath . vSrcFileSrcFile
 #else
 vSrcFilePath :: (Monad m) => VSourceFile -> m AbsolutePath
-vSrcFilePath vSourceFile = do
-  let (SourceFile path) = vSrcFileSrcFile vSourceFile
-  return path
 #endif
+vSrcFilePath = srcFilePath . vSrcFileSrcFile
 
 #if MIN_VERSION_Agda(2,8,0)
 vSrcFromUri ::
@@ -69,37 +75,44 @@ vSrcFromUri normUri file = do
   return $ VSourceFile src normUri file
 #endif
 
--- | Based on @parseSource@
-parseVSource :: (TCM.MonadTCM m, TCM.MonadTrace m, MonadAgdaLib m) => VSourceFile -> m Imp.Source
-parseVSource vSrcFile = do
-  let sourceFile = vSrcFileSrcFile vSrcFile
-  f <- TCM.liftTCM $ vSrcFilePath vSrcFile
+parseSourceFromContents ::
+  (TCM.MonadTCM m, TCM.MonadTrace m, MonadAgdaLib m) =>
+  LSP.NormalizedUri ->
+  SourceFile ->
+  Text.Text ->
+  m Imp.Source
+parseSourceFromContents srcUri srcFile contentsStrict = do
+  f <- TCM.liftTCM $ srcFilePath srcFile
 
   let rf0 = mkRangeFile f Nothing
   TCM.setCurrentRange (Imp.beginningOfFile rf0) $ do
-    let sourceStrict = VFS.virtualFileText $ vSrcVFile vSrcFile
-    let source = Strict.toLazy sourceStrict
-    let txt = Text.unpack sourceStrict
+    let contents = Strict.toLazy contentsStrict
+    let contentsString = Text.unpack contentsStrict
 
     parsedModName0 <-
       TCM.liftTCM $
         Imp.moduleName f . fst . fst =<< do
-          Imp.runPMDropWarnings $ parseFile moduleParser rf0 txt
+          Imp.runPMDropWarnings $ parseFile moduleParser rf0 contentsString
 
     let rf = mkRangeFile f $ Just parsedModName0
-    ((parsedMod, attrs), fileType) <- TCM.liftTCM $ Imp.runPM $ parseFile moduleParser rf txt
+    ((parsedMod, attrs), fileType) <- TCM.liftTCM $ Imp.runPM $ parseFile moduleParser rf contentsString
     parsedModName <- TCM.liftTCM $ Imp.moduleName f parsedMod
 
     agdaLib <- askAgdaLib
-    let libs = maybeToList $ agdaLibToFile (vSrcUri vSrcFile) agdaLib
+    let libs = maybeToList $ agdaLibToFile srcUri agdaLib
 
     return
       Imp.Source
-        { Imp.srcText = source,
+        { Imp.srcText = contents,
           Imp.srcFileType = fileType,
-          Imp.srcOrigin = sourceFile,
+          Imp.srcOrigin = srcFile,
           Imp.srcModule = parsedMod,
           Imp.srcModuleName = parsedModName,
           Imp.srcProjectLibs = libs,
           Imp.srcAttributes = attrs
         }
+
+-- | Based on @parseSource@
+parseVSource :: (TCM.MonadTCM m, TCM.MonadTrace m, MonadAgdaLib m) => VSourceFile -> m Imp.Source
+parseVSource (VSourceFile srcFile uri vFile) =
+  parseSourceFromContents uri srcFile (VFS.virtualFileText vFile)

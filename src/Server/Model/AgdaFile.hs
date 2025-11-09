@@ -14,7 +14,7 @@ where
 
 import Agda.Position (toLspRange)
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Common.Pretty (Pretty, pretty, prettyAssign, prettyMap, text, vcat)
+import Agda.Syntax.Common.Pretty (Pretty, pretty, prettyAssign, prettyMap, prettyShow, text, vcat)
 import Agda.Syntax.Position (getRange)
 import Agda.Utils.Lens (Lens', over, (<&>), (^.))
 import Data.Foldable (find)
@@ -29,6 +29,7 @@ data AgdaFile = AgdaFile
   { _agdaFileSymbols :: !(Map A.QName SymbolInfo),
     _agdaFileRefs :: !(Map A.QName [Ref])
   }
+  deriving (Eq)
 
 instance Pretty AgdaFile where
   pretty agdaFile =
@@ -36,6 +37,9 @@ instance Pretty AgdaFile where
       [ prettyAssign (text "symbols", prettyMap $ Map.toList $ agdaFile ^. agdaFileSymbols),
         prettyAssign (text "refs", prettyMap $ Map.toList $ agdaFile ^. agdaFileRefs)
       ]
+
+instance Show AgdaFile where
+  show = prettyShow
 
 emptyAgdaFile :: AgdaFile
 emptyAgdaFile = AgdaFile Map.empty Map.empty

@@ -12,6 +12,7 @@ module TestData
     AgdaFileDetails (..),
     agdaFileDetails,
     parseSourceFromPath,
+    parseSourceFromPathAndContents,
   )
 where
 
@@ -44,10 +45,12 @@ import qualified Server.CommandController as CommandController
 import Server.Model (Model (Model))
 import Server.Model.AgdaFile (AgdaFile, emptyAgdaFile)
 import Server.Model.AgdaLib (agdaLibIncludes, initAgdaLib)
-import Server.Model.Monad (runWithAgdaLib)
+import Server.Model.Monad (runWithAgdaLib, MonadAgdaLib)
 import qualified Server.ResponseController as ResponseController
 import System.FilePath (takeBaseName, (</>))
 import Agda.TypeChecking.Pretty (prettyTCM)
+import Data.Text (Text)
+import Agda.Interaction.Imports.Virtual (parseSourceFromContents)
 
 data AgdaFileDetails = AgdaFileDetails
   { fileName :: String,
@@ -84,15 +87,29 @@ agdaFileDetails inPath = do
 
   return $ AgdaFileDetails testName file interface
 
-parseSourceFromPath :: (TCM.MonadTCM m) => FilePath -> m Imp.Source
-parseSourceFromPath path = do
+sourceFileFromPath :: (TCM.MonadTCM m) => FilePath -> m SourceFile
+sourceFileFromPath path = do
   absPath <- liftIO $ absolute path
 #if MIN_VERSION_Agda(2,8,0)
-  srcFile <- TCM.liftTCM $ TCM.srcFromPath absPath
+  TCM.liftTCM $ TCM.srcFromPath absPath
 #else
-  let srcFile = SourceFile absPath
+  return $ SourceFile absPath
 #endif
+
+parseSourceFromPath :: (TCM.MonadTCM m) => FilePath -> m Imp.Source
+parseSourceFromPath path = do
+  srcFile <- sourceFileFromPath path
   TCM.liftTCM $ Imp.parseSource srcFile
+
+parseSourceFromPathAndContents ::
+  (TCM.MonadTCM m, TCM.MonadTrace m, MonadAgdaLib m) =>
+  FilePath ->
+  Text ->
+    m Imp.Source
+parseSourceFromPathAndContents path contents = do
+  srcFile <- sourceFileFromPath path
+  let uri = LSP.toNormalizedUri $ LSP.filePathToUri path
+  parseSourceFromContents uri srcFile contents
 
 --------------------------------------------------------------------------------
 

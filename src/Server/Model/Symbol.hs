@@ -66,6 +66,7 @@ data SymbolInfo = SymbolInfo
     symbolType :: !(Maybe String),
     symbolParent :: !(Maybe A.QName)
   }
+  deriving (Eq)
 
 instance Pretty SymbolInfo where
   pretty symbolInfo =
@@ -115,6 +116,7 @@ data Ref = Ref
     refRange :: !LSP.Range,
     refIsAmbiguous :: !Bool
   }
+  deriving (Eq)
 
 prettyAmbiguity :: Ref -> Doc
 prettyAmbiguity ref =
