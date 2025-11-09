@@ -62,12 +62,14 @@ import Agda.Syntax.Common.Pretty (Pretty, pretty, text, prettyAssign, (<+>))
 import Agda.TypeChecking.Monad
   ( Interface,
     TCM,
-    checkAndSetOptionsFromPragma,
     setCurrentRange,
     setOptionsFromPragma,
     setTCLens,
     stPragmaOptions,
     useTC,
+#if MIN_VERSION_Agda(2,7,0)
+    checkAndSetOptionsFromPragma,
+#endif
 #if MIN_VERSION_Agda(2,8,0)
     runPM,
     runPMDropWarnings,
@@ -146,9 +148,13 @@ setOptionsFromSourcePragmas checkOpts src = do
   mapM_ setOpts (srcDefaultPragmas src)
   mapM_ setOpts (srcFilePragmas src)
   where
+#if MIN_VERSION_Agda(2,7,0)
     setOpts
       | checkOpts = checkAndSetOptionsFromPragma
       | otherwise = setOptionsFromPragma
+#else
+    setOpts = setOptionsFromPragma
+#endif
 
 -- Andreas, 2016-07-11, issue 2092
 -- The error range should be set to the file with the wrong module name

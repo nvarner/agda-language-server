@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE KindSignatures #-}
@@ -26,6 +27,10 @@ import qualified Language.LSP.Server as LSP
 import Monad (ServerM, askModel, catchTCError, findAgdaLib)
 import qualified Server.Model as Model
 import Server.Model.Monad (WithAgdaFileM, WithAgdaLibM, runWithAgdaFileT, runWithAgdaLibT)
+#if MIN_VERSION_Agda(2,7,0)
+#else
+import Agda.TypeChecking.Errors ()
+#endif
 
 tryTC :: ServerM a -> ServerM (Either TCM.TCErr a)
 tryTC handler = (Right <$> handler) `catchTCError` (return . Left)

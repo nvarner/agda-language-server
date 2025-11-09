@@ -25,7 +25,6 @@ module Server.Model.Monad
 where
 
 import Agda.Interaction.Options (CommandLineOptions (optPragmaOptions), PragmaOptions)
-import Agda.Interaction.Response (Response_boot (Resp_HighlightingInfo))
 import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Position (getRange)
 import Agda.TypeChecking.Monad (HasOptions (..), MonadTCEnv (..), MonadTCM (..), MonadTCState (..), MonadTrace, PersistentTCState (stPersistentOptions), ReadTCState (..), TCEnv (..), TCM, TCMT (..), TCState (stPersistentState), catchError_, modifyTCLens, setTCLens, stPragmaOptions, useTC, viewTC)
@@ -53,6 +52,11 @@ import Server.Model.AgdaLib (AgdaLib, agdaLibTcEnv, agdaLibTcStateRef)
 import Prelude hiding (null)
 #if MIN_VERSION_Agda(2,8,0)
 import Agda.Utils.FileId (File, getIdFile)
+#endif
+#if MIN_VERSION_Agda(2,7,0)
+import Agda.Interaction.Response (Response_boot(Resp_HighlightingInfo))
+#else
+import Agda.Interaction.Response (Response(Resp_HighlightingInfo))
 #endif
 
 --------------------------------------------------------------------------------

@@ -136,7 +136,11 @@ instance Indexable A.Declaration where
           index decls
     A.PatternSynDef name bindings pat -> do
       tellDecl name PatternSyn UnknownType
+#if MIN_VERSION_Agda(2,7,0)
       forM_ bindings $ \(C.WithHiding _hiding binding) ->
+#else
+      forM_ bindings $ \(C.Arg _argInfo binding) ->
+#endif
         tellDef binding Param UnknownType
       let pat' :: A.Pattern = fmap absurd pat
       index pat'
@@ -302,7 +306,11 @@ instance (Indexable a) => Indexable (C.Arg a) where
     when (C.argInfoOrigin argInfo == C.UserWritten) $
       index x
 
+#if MIN_VERSION_Agda(2,7,0)
 instance Indexable A.TacticAttribute
+#else
+instance (Indexable a) => Indexable (C.Ranged a)
+#endif
 
 instance Indexable A.DefInfo where
   index = index . Info.defTactic
@@ -391,10 +399,12 @@ instance Indexable A.RewriteEqn where
           tellDef bindName Param UnknownType
         index pat
         index expr
+#if MIN_VERSION_Agda(2,7,0)
     C.LeftLet bindings ->
       forM_ bindings $ \(pat, expr) -> do
         index pat
         index expr
+#endif
 
 instance Indexable A.RHS where
   index rhs = case rhs of
@@ -556,18 +566,20 @@ instance Indexable A.Pragma where
       tellUsage name
     A.InjectivePragma name ->
       tellUsage name
-    A.InjectiveForInferencePragma name ->
-      tellUsage name
     A.InlinePragma _shouldInline name ->
       tellUsage name
     A.NotProjectionLikePragma name ->
-      tellUsage name
-    A.OverlapPragma name _overlapMode ->
       tellUsage name
     A.DisplayPragma name args displayExpr -> do
       tellUsage name
       indexNamedArgs name args
       index displayExpr
+#if MIN_VERSION_Agda(2,7,0)
+    A.InjectiveForInferencePragma name ->
+      tellUsage name
+    A.OverlapPragma name _overlapMode ->
+      tellUsage name
+#endif
 
 --------------------------------------------------------------------------------
 

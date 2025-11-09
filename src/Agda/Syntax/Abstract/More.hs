@@ -7,7 +7,6 @@ import Agda.Syntax.Abstract
 import Agda.Syntax.Common
 import Agda.Syntax.Common (ArgInfo (argInfoOrigin))
 import Agda.Syntax.Common.Pretty
-import Agda.Syntax.Concrete (TacticAttribute' (theTacticAttribute))
 import Agda.Syntax.Info
 import Agda.Utils.Functor ((<&>))
 import Data.Foldable (Foldable (toList))
