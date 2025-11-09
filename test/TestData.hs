@@ -11,6 +11,7 @@ module TestData
     getServerEnv,
     AgdaFileDetails (..),
     agdaFileDetails,
+    parseSourceFromPath,
   )
 where
 
@@ -65,13 +66,7 @@ agdaFileDetails inPath = do
     runServerT env $ do
       let withSrc f = runWithAgdaLib uri $ do
             TCM.liftTCM $ TCM.setCommandLineOptions Agda.Interaction.Options.defaultOptions
-            absInPath <- liftIO $ absolute inPath
-#if MIN_VERSION_Agda(2,8,0)
-            srcFile <- TCM.srcFromPath absInPath
-#else
-            let srcFile = SourceFile absInPath
-#endif
-            src <- TCM.liftTCM $ Imp.parseSource srcFile
+            src <- parseSourceFromPath inPath
 
             f src
 
@@ -88,6 +83,16 @@ agdaFileDetails inPath = do
       return (file, interface)
 
   return $ AgdaFileDetails testName file interface
+
+parseSourceFromPath :: (TCM.MonadTCM m) => FilePath -> m Imp.Source
+parseSourceFromPath path = do
+  absPath <- liftIO $ absolute path
+#if MIN_VERSION_Agda(2,8,0)
+  srcFile <- TCM.liftTCM $ TCM.srcFromPath absPath
+#else
+  let srcFile = SourceFile absPath
+#endif
+  TCM.liftTCM $ Imp.parseSource srcFile
 
 --------------------------------------------------------------------------------
 

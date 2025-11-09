@@ -186,11 +186,13 @@ test-suite als-test
   type: exitcode-stdio-1.0
   main-is: Test.hs
   other-modules:
+      Test.Indexer
       Test.Indexer.Invariants
+      Test.Indexer.Invariants.NoDuplicateDecl
+      Test.Indexer.Invariants.NoMissing
+      Test.Indexer.Invariants.NoOverlap
       Test.Indexer.NoAnonFunSymbol
-      Test.Indexer.NoDuplicateDecl
-      Test.Indexer.NoMissing
-      Test.Indexer.NoOverlap
+      Test.Indexer.Reload
       Test.LSP
       Test.Model
       Test.ModelMonad

@@ -1,4 +1,4 @@
-module Test.Indexer.NoDuplicateDecl (testNoDuplicateDecl) where
+module Test.Indexer.Invariants.NoDuplicateDecl (testNoDuplicateDecl) where
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common.Pretty (Pretty, align, pretty, prettyList, prettyShow, text, vcat, (<+>))

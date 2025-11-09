@@ -1,7 +1,7 @@
 -- | Check that highlighting data doesn't show more references than we have
 -- `Ref`s. We expect to sometimes pick up references that highlighting does not,
 -- so it's okay if we have more.
-module Test.Indexer.NoMissing (testNoMissing) where
+module Test.Indexer.Invariants.NoMissing (testNoMissing) where
 
 import Agda.Interaction.Highlighting.Precise (Aspects, HighlightingInfo)
 import qualified Agda.Interaction.Highlighting.Precise as HL

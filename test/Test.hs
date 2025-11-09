@@ -14,6 +14,7 @@ import qualified Test.ModelMonad as ModelMonad
 import qualified Test.Indexer.Invariants as IndexerInvariants
 import qualified Test.Indexer.NoAnonFunSymbol as NoAnonFunSymbol
 import qualified Test.Uri as URI
+import qualified Test.Indexer as Indexer
 
 -- Define the custom option
 newtype AlsPathOption = AlsPathOption FilePath
@@ -33,7 +34,7 @@ main = do
 
 tests :: IO TestTree
 tests = do
-  indexerInvariantsTest <- IndexerInvariants.tests
+  indexerTests <- Indexer.tests
   return $ askOption $ \(AlsPathOption alsPath) ->
     testGroup
       "Tests"
@@ -42,8 +43,7 @@ tests = do
         URI.tests,
         Model.tests,
         ModelMonad.tests,
-        indexerInvariantsTest,
-        NoAnonFunSymbol.tests
+        indexerTests
 #if defined(wasm32_HOST_ARCH)
       , WASM.tests alsPath
 #endif

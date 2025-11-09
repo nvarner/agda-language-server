@@ -1,9 +1,9 @@
 module Test.Indexer.Invariants (tests) where
 
 import Control.Monad (forM)
-import Test.Indexer.NoDuplicateDecl (testNoDuplicateDecl)
-import Test.Indexer.NoMissing (testNoMissing)
-import Test.Indexer.NoOverlap (testNoOverlap)
+import Test.Indexer.Invariants.NoDuplicateDecl (testNoDuplicateDecl)
+import Test.Indexer.Invariants.NoMissing (testNoMissing)
+import Test.Indexer.Invariants.NoOverlap (testNoOverlap)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Golden (findByExtension)
 import qualified TestData
