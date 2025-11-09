@@ -13,6 +13,7 @@ import qualified Test.Model as Model
 import qualified Test.ModelMonad as ModelMonad
 import qualified Test.Indexer.Invariants as IndexerInvariants
 import qualified Test.Indexer.NoAnonFunSymbol as NoAnonFunSymbol
+import qualified Test.Uri as URI
 
 -- Define the custom option
 newtype AlsPathOption = AlsPathOption FilePath
@@ -38,6 +39,7 @@ tests = do
       "Tests"
       [ SrcLoc.tests,
         LSP.tests alsPath,
+        URI.tests,
         Model.tests,
         ModelMonad.tests,
         indexerInvariantsTest,

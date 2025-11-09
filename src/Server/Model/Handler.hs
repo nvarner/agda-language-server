@@ -45,6 +45,7 @@ notificationHandlerWithAgdaLib m handlerWithAgdaLib = LSP.notificationHandler m 
   let uri = notification ^. LSP.params . LSP.textDocument . LSP.uri
       normUri = LSP.toNormalizedUri uri
   agdaLib <- findAgdaLib normUri
+  lift $ LSP.sendNotification LSP.SMethod_WindowLogMessage $ LSP.LogMessageParams LSP.MessageType_Info $ Text.pack $ prettyShow agdaLib
 
   let notificationHandler = runWithAgdaLibT agdaLib . handlerWithAgdaLib normUri
   let handler = tryTC $ notificationHandler notification
@@ -52,6 +53,7 @@ notificationHandlerWithAgdaLib m handlerWithAgdaLib = LSP.notificationHandler m 
   let onErr = \err -> runWithAgdaLibT agdaLib $ do
         message <- Text.pack . prettyShow <$> TCM.liftTCM (TCM.prettyTCM err)
         lift $ LSP.sendNotification LSP.SMethod_WindowShowMessage $ LSP.ShowMessageParams LSP.MessageType_Error message
+        lift $ LSP.sendNotification LSP.SMethod_WindowLogMessage $ LSP.LogMessageParams LSP.MessageType_Error message
 
   fromRightM onErr handler
 

@@ -22,6 +22,7 @@ import Agda.Interaction.FindFile (
 import Agda.Interaction.Imports (Source (..))
 import qualified Agda.Interaction.Imports as Imp
 import Agda.Interaction.Library (OptionsPragma (..), _libPragmas)
+import Agda.Interaction.Library.More ()
 import Agda.Syntax.Common (TopLevelModuleName')
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Parser (
@@ -57,6 +58,7 @@ import Agda.Syntax.TopLevelModuleName (
     rawTopLevelModuleNameForModule,
 #endif
   )
+import Agda.Syntax.Common.Pretty (Pretty, pretty, text, prettyAssign, (<+>))
 import Agda.TypeChecking.Monad
   ( Interface,
     TCM,
@@ -92,8 +94,6 @@ import Control.Monad.Error.Class (
   )
 #if MIN_VERSION_Agda(2,8,0)
 import Agda.Utils.Singleton (singleton)
-#else
-import Agda.Syntax.Common.Pretty (pretty)
 #endif
 
 srcFilePath :: SourceFile -> TCM AbsolutePath
@@ -193,3 +193,11 @@ moduleName file parsedModule = Bench.billTo [Bench.ModuleName] $ do
             }
     else return raw
 #endif
+
+-- Orphan instances
+
+instance Pretty Imp.Source where
+  pretty src =
+    text "Source"
+      <+> pretty (Imp.srcModuleName src)
+      <+> pretty (Imp.srcProjectLibs src)

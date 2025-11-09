@@ -19,6 +19,7 @@ import Agda.Syntax.Parser (moduleParser, parseFile)
 import Agda.Syntax.Position (mkRangeFile)
 import qualified Agda.TypeChecking.Monad as TCM
 import Agda.Utils.FileName (AbsolutePath)
+import Agda.Utils.Maybe (maybeToList)
 import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Trans (lift)
 import qualified Data.Strict as Strict
@@ -27,6 +28,8 @@ import qualified Language.LSP.Protocol.Types as LSP
 import Language.LSP.Protocol.Types.Uri.More (uriToPossiblyInvalidAbsolutePath)
 import qualified Language.LSP.Server as LSP
 import qualified Language.LSP.VFS as VFS
+import Server.Model.AgdaLib (agdaLibToFile)
+import Server.Model.Monad (MonadAgdaLib (askAgdaLib))
 
 data VSourceFile = VSourceFile
   { vSrcFileSrcFile :: SourceFile,
@@ -67,10 +70,10 @@ vSrcFromUri normUri file = do
 #endif
 
 -- | Based on @parseSource@
-parseVSource :: (TCM.MonadTCM m) => VSourceFile -> m Imp.Source
-parseVSource vSrcFile = TCM.liftTCM $ do
+parseVSource :: (TCM.MonadTCM m, TCM.MonadTrace m, MonadAgdaLib m) => VSourceFile -> m Imp.Source
+parseVSource vSrcFile = do
   let sourceFile = vSrcFileSrcFile vSrcFile
-  f <- vSrcFilePath vSrcFile
+  f <- TCM.liftTCM $ vSrcFilePath vSrcFile
 
   let rf0 = mkRangeFile f Nothing
   TCM.setCurrentRange (Imp.beginningOfFile rf0) $ do
@@ -79,15 +82,16 @@ parseVSource vSrcFile = TCM.liftTCM $ do
     let txt = Text.unpack sourceStrict
 
     parsedModName0 <-
-      Imp.moduleName f . fst . fst =<< do
-        Imp.runPMDropWarnings $ parseFile moduleParser rf0 txt
+      TCM.liftTCM $
+        Imp.moduleName f . fst . fst =<< do
+          Imp.runPMDropWarnings $ parseFile moduleParser rf0 txt
 
     let rf = mkRangeFile f $ Just parsedModName0
-    ((parsedMod, attrs), fileType) <- Imp.runPM $ parseFile moduleParser rf txt
-    parsedModName <- Imp.moduleName f parsedMod
+    ((parsedMod, attrs), fileType) <- TCM.liftTCM $ Imp.runPM $ parseFile moduleParser rf txt
+    parsedModName <- TCM.liftTCM $ Imp.moduleName f parsedMod
 
-    -- TODO: handle libs properly
-    let libs = []
+    agdaLib <- askAgdaLib
+    let libs = maybeToList $ agdaLibToFile (vSrcUri vSrcFile) agdaLib
 
     return
       Imp.Source

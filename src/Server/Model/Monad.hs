@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
@@ -24,13 +25,16 @@ module Server.Model.Monad
 where
 
 import Agda.Interaction.Options (CommandLineOptions (optPragmaOptions), PragmaOptions)
+import Agda.Interaction.Response (Response_boot (Resp_HighlightingInfo))
 import Agda.Syntax.Common.Pretty (prettyShow)
-import Agda.TypeChecking.Monad (HasOptions (..), MonadTCEnv (..), MonadTCM (..), MonadTCState (..), PersistentTCState (stPersistentOptions), ReadTCState (..), TCEnv, TCM, TCMT (..), TCState (stPersistentState), catchError_, modifyTCLens, setTCLens, stPragmaOptions, useTC)
+import Agda.Syntax.Position (getRange)
+import Agda.TypeChecking.Monad (HasOptions (..), MonadTCEnv (..), MonadTCM (..), MonadTCState (..), MonadTrace, PersistentTCState (stPersistentOptions), ReadTCState (..), TCEnv (..), TCM, TCMT (..), TCState (stPersistentState), catchError_, modifyTCLens, setTCLens, stPragmaOptions, useTC, viewTC)
 import qualified Agda.TypeChecking.Monad as TCM
 import qualified Agda.TypeChecking.Pretty as TCM
 import Agda.Utils.IORef (modifyIORef', readIORef, writeIORef)
 import Agda.Utils.Lens (Lens', locally, over, use, view, (<&>), (^.))
-import Agda.Utils.Monad (bracket_)
+import Agda.Utils.Monad (and2M, bracket_, ifNotM, unless)
+import Agda.Utils.Null (null)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Reader (MonadReader (local), ReaderT (runReaderT), ask, asks)
 import Control.Monad.Trans (MonadTrans, lift)
@@ -46,6 +50,7 @@ import Options (Config)
 import qualified Server.Model as Model
 import Server.Model.AgdaFile (AgdaFile)
 import Server.Model.AgdaLib (AgdaLib, agdaLibTcEnv, agdaLibTcStateRef)
+import Prelude hiding (null)
 #if MIN_VERSION_Agda(2,8,0)
 import Agda.Utils.FileId (File, getIdFile)
 #endif
@@ -114,6 +119,94 @@ defaultLiftTCM (TCM f) = do
   tcEnv <- useAgdaLib agdaLibTcEnv
   liftIO $ f tcStateRef tcEnv
 
+-- Taken from TCM implementation
+defaultTraceClosureCall :: (MonadAgdaLib m, MonadTrace m) => TCM.Closure TCM.Call -> m a -> m a
+defaultTraceClosureCall cl m = do
+  -- Compute update to 'Range' and 'Call' components of 'TCEnv'.
+  let withCall =
+        localTC $
+          foldr (.) id $
+            concat $
+              [ [\e -> e {envCall = Just cl} | TCM.interestingCall call],
+                [ \e -> e {envHighlightingRange = callRange}
+                | callHasRange && highlightCall
+                    || isNoHighlighting
+                ],
+                [\e -> e {envRange = callRange} | callHasRange]
+              ]
+
+  -- For interactive highlighting, also wrap computation @m@ in 'highlightAsTypeChecked':
+  ifNotM
+    (pure highlightCall `and2M` do (TCM.Interactive ==) . envHighlightingLevel <$> askTC)
+    {-then-} (withCall m)
+    {-else-} $ do
+      oldRange <- envHighlightingRange <$> askTC
+      TCM.highlightAsTypeChecked oldRange callRange $
+        withCall m
+  where
+    call = TCM.clValue cl
+    callRange = getRange call
+    callHasRange = not $ null callRange
+
+    -- Should the given call trigger interactive highlighting?
+    highlightCall = case call of
+      TCM.CheckClause {} -> True
+      TCM.CheckLHS {} -> True
+      TCM.CheckPattern {} -> True
+      TCM.CheckPatternLinearityType {} -> False
+      TCM.CheckPatternLinearityValue {} -> False
+      TCM.CheckLetBinding {} -> True
+      TCM.InferExpr {} -> True
+      TCM.CheckExprCall {} -> True
+      TCM.CheckDotPattern {} -> True
+      TCM.IsTypeCall {} -> True
+      TCM.IsType_ {} -> True
+      TCM.InferVar {} -> True
+      TCM.InferDef {} -> True
+      TCM.CheckArguments {} -> True
+      TCM.CheckMetaSolution {} -> False
+      TCM.CheckTargetType {} -> False
+      TCM.CheckDataDef {} -> True
+      TCM.CheckRecDef {} -> True
+      TCM.CheckConstructor {} -> True
+      TCM.CheckConArgFitsIn {} -> False
+      TCM.CheckFunDefCall _ _ _ h -> h
+      TCM.CheckPragma {} -> True
+      TCM.CheckPrimitive {} -> True
+      TCM.CheckIsEmpty {} -> True
+      TCM.CheckConfluence {} -> False
+      TCM.CheckIApplyConfluence {} -> False
+      TCM.CheckModuleParameters {} -> False
+      TCM.CheckWithFunctionType {} -> True
+      TCM.CheckSectionApplication {} -> True
+      TCM.CheckNamedWhere {} -> False
+      TCM.ScopeCheckExpr {} -> False
+      TCM.ScopeCheckDeclaration {} -> False
+      TCM.ScopeCheckLHS {} -> False
+      TCM.NoHighlighting {} -> True
+      TCM.CheckProjection {} -> False
+      TCM.SetRange {} -> False
+      TCM.ModuleContents {} -> False
+
+    isNoHighlighting = case call of
+      TCM.NoHighlighting {} -> True
+      _ -> False
+
+    printHighlightingInfo remove info = do
+      modToSrc <- useTC TCM.stModuleToSource
+      method <- viewTC TCM.eHighlightingMethod
+      -- reportSDoc "highlighting" 50 $
+      --   pure $
+      --     vcat
+      --       [ "Printing highlighting info:",
+      --         nest 2 $ (text . show) info,
+      --         "File modules:",
+      --         nest 2 $ pretty modToSrc
+      --       ]
+      unless (null info) $ do
+        TCM.appInteractionOutputCallback $
+          Resp_HighlightingInfo info remove method modToSrc
+
 #if MIN_VERSION_Agda(2,8,0)
 -- Taken from TCMT implementation
 defaultFileFromId :: (MonadAgdaLib m) => TCM.FileId -> m File
@@ -161,6 +254,11 @@ instance (MonadIO m) => ReadTCState (WithAgdaLibT m) where
 instance (MonadIO m) => HasOptions (WithAgdaLibT m) where
   pragmaOptions = defaultPragmaOptionsImpl
   commandLineOptions = defaultCommandLineOptionsImpl
+
+-- TODO: how should this really be implemented?
+instance (MonadIO m) => MonadTrace (WithAgdaLibT m) where
+  traceClosureCall = defaultTraceClosureCall
+  printHighlightingInfo _ _ = return ()
 
 instance (MonadIO m) => MonadTCM (WithAgdaLibT m) where
   liftTCM = defaultLiftTCM

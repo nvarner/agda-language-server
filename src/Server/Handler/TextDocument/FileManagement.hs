@@ -8,10 +8,12 @@ where
 import Agda.Interaction.FindFile (SourceFile (SourceFile))
 import qualified Agda.Interaction.Imports.More as Imp
 import Agda.Interaction.Imports.Virtual (parseVSource, vSrcFromUri)
+import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.TypeChecking.Monad (MonadTCM (liftTCM))
 import Agda.Utils.Lens ((^.))
 import Control.Monad.Trans (lift)
 import Data.Strict (Strict (toLazy))
+import qualified Data.Text as Text
 import Indexer (indexFile)
 import qualified Language.LSP.Protocol.Lens as LSP
 import qualified Language.LSP.Protocol.Message as LSP
@@ -30,7 +32,8 @@ didOpenHandler = notificationHandlerWithAgdaLib LSP.SMethod_TextDocumentDidOpen 
     Nothing -> return ()
     Just vfile -> do
       vSourceFile <- vSrcFromUri uri vfile
-      src <- liftTCM $ parseVSource vSourceFile
+      src <- parseVSource vSourceFile
+      lift $ LSP.sendNotification LSP.SMethod_WindowLogMessage $ LSP.LogMessageParams LSP.MessageType_Info $ Text.pack $ prettyShow src
       agdaFile <- indexFile src
       lift $ modifyModel $ Model.setAgdaFile uri agdaFile
 
@@ -45,6 +48,7 @@ didSaveHandler = notificationHandlerWithAgdaLib LSP.SMethod_TextDocumentDidSave 
     Nothing -> return ()
     Just vfile -> do
       vSourceFile <- vSrcFromUri uri vfile
-      src <- liftTCM $ parseVSource vSourceFile
+      src <- parseVSource vSourceFile
+      lift $ LSP.sendNotification LSP.SMethod_WindowLogMessage $ LSP.LogMessageParams LSP.MessageType_Info $ Text.pack $ prettyShow src
       agdaFile <- indexFile src
       lift $ modifyModel $ Model.setAgdaFile uri agdaFile
