@@ -84,8 +84,8 @@ instance Indexable A.Declaration where
     A.Section _range _erased moduleName genTel decls -> do
       tellDecl moduleName Module NoType
       tellParamNames moduleName genTel
-      index genTel
       withParent moduleName $ do
+        index genTel
         index decls
     A.Apply _moduleInfo _erased moduleName moduleApp _scopeCopyInfo importDirective -> do
       tellUsage moduleName
