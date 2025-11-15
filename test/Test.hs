@@ -15,6 +15,7 @@ import qualified Test.Indexer.Invariants as IndexerInvariants
 import qualified Test.Indexer.NoAnonFunSymbol as NoAnonFunSymbol
 import qualified Test.Uri as URI
 import qualified Test.Indexer as Indexer
+import qualified Test.AgdaLibResolution as AgdaLibResolution
 
 -- Define the custom option
 newtype AlsPathOption = AlsPathOption FilePath
@@ -43,6 +44,7 @@ tests = do
         URI.tests,
         Model.tests,
         ModelMonad.tests,
+        AgdaLibResolution.tests,
         indexerTests
 #if defined(wasm32_HOST_ARCH)
       , WASM.tests alsPath
