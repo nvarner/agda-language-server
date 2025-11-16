@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.37.0.
+-- This file has been generated from package.yaml by hpack version 0.38.1.
 --
 -- see: https://github.com/sol/hpack
 
@@ -52,6 +52,7 @@ library
       Agda.Interaction.Imports.More
       Agda.Interaction.Imports.Virtual
       Agda.Interaction.Library.More
+      Agda.Interaction.Library.Parse.More
       Agda.IR
       Agda.Parser
       Agda.Position
@@ -79,7 +80,9 @@ library
       Render.TypeChecking
       Render.Utils
       Server
+      Server.AgdaLibResolver
       Server.CommandController
+      Server.Filesystem
       Server.Handler
       Server.Handler.TextDocument.DocumentSymbol
       Server.Handler.TextDocument.FileManagement
@@ -90,6 +93,7 @@ library
       Server.Model.Monad
       Server.Model.Symbol
       Server.ResponseController
+      Server.VfsIndex
       Switchboard
   other-modules:
       Paths_agda_language_server
@@ -111,6 +115,7 @@ library
     , filepath
     , lsp >=2
     , lsp-types >=2
+    , modern-uri
     , mtl
     , network
     , network-simple ==0.4.2
@@ -158,6 +163,7 @@ executable als
     , filepath
     , lsp >=2
     , lsp-types >=2
+    , modern-uri
     , mtl
     , network
     , network-simple ==0.4.2
@@ -186,6 +192,7 @@ test-suite als-test
   type: exitcode-stdio-1.0
   main-is: Test.hs
   other-modules:
+      Test.AgdaLibResolution
       Test.Indexer
       Test.Indexer.Invariants
       Test.Indexer.Invariants.NoDuplicateDecl
@@ -205,6 +212,7 @@ test-suite als-test
       Agda.Interaction.Imports.More
       Agda.Interaction.Imports.Virtual
       Agda.Interaction.Library.More
+      Agda.Interaction.Library.Parse.More
       Agda.IR
       Agda.Parser
       Agda.Position
@@ -232,7 +240,9 @@ test-suite als-test
       Render.TypeChecking
       Render.Utils
       Server
+      Server.AgdaLibResolver
       Server.CommandController
+      Server.Filesystem
       Server.Handler
       Server.Handler.TextDocument.DocumentSymbol
       Server.Handler.TextDocument.FileManagement
@@ -243,6 +253,7 @@ test-suite als-test
       Server.Model.Monad
       Server.Model.Symbol
       Server.ResponseController
+      Server.VfsIndex
       Switchboard
       Paths_agda_language_server
   hs-source-dirs:
@@ -265,6 +276,7 @@ test-suite als-test
     , lsp >=2
     , lsp-test
     , lsp-types >=2
+    , modern-uri
     , mtl
     , network
     , network-simple ==0.4.2

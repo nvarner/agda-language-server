@@ -51,6 +51,8 @@ import System.FilePath (takeBaseName, (</>))
 import Agda.TypeChecking.Pretty (prettyTCM)
 import Data.Text (Text)
 import Agda.Interaction.Imports.Virtual (parseSourceFromContents)
+import qualified Server.Filesystem as FS
+import qualified Server.VfsIndex as VfsIndex
 
 data AgdaFileDetails = AgdaFileDetails
   { fileName :: String,
@@ -183,4 +185,6 @@ getServerEnv model =
     <*> liftIO CommandController.new
     <*> liftIO newChan
     <*> liftIO ResponseController.new
+    <*> (pure $ FS.Layered [FS.Wrap FS.LspVirtualFilesystem, FS.Wrap FS.OsFilesystem])
+    <*> liftIO (newIORef VfsIndex.empty)
     <*> liftIO (newIORef model)

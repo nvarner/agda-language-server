@@ -8,7 +8,7 @@ module Server.Model.AgdaLib
     agdaLibTcStateRef,
     agdaLibTcEnv,
     isAgdaLibForUri,
-    agdaLibFromFs,
+    agdaLibFromFile,
     agdaLibToFile,
   )
 where
@@ -18,19 +18,8 @@ import Agda.Interaction.Library (
     findProjectRoot,
     LibName,
     OptionsPragma (OptionsPragma),
-#if MIN_VERSION_Agda(2,8,0)
-    getAgdaLibFile,
-#else
-    getAgdaLibFiles',
-#endif
   )
-import Agda.Interaction.Library.More (
-    tryRunLibM,
-#if MIN_VERSION_Agda(2,8,0)
-#else
-    runLibErrorIO,
-#endif
-  )
+import Agda.Interaction.Library.More (tryRunLibM)
 import qualified Agda.TypeChecking.Monad as TCM
 import Agda.Utils.IORef (IORef, newIORef)
 import Agda.Utils.Lens (Lens', (<&>), (^.), set)
@@ -105,37 +94,6 @@ agdaLibOrigin f a = f (_agdaLibOrigin a) <&> \x -> a {_agdaLibOrigin = x}
 
 isAgdaLibForUri :: AgdaLib -> LSP.NormalizedUri -> Bool
 isAgdaLibForUri agdaLib uri = any (`LSP.isUriAncestorOf` uri) (agdaLib ^. agdaLibIncludes)
-
--- | Get an 'AgdaLib' from @.agda-lib@ files on the filesystem. These files are
--- searched for by traversing parent directories until one is found.
-agdaLibFromFs ::
-  (MonadIO m) =>
-  -- | Directory to start the search from
-  FilePath ->
-  m (Maybe AgdaLib)
-agdaLibFromFs path = do
-  root <- tryRunLibM $ findProjectRoot path
-  case root of
-    Just (Just root) -> do
-      libFile <- tryGetLibFileFromRootPath root
-      case libFile of
-        Just libFile -> Just <$> agdaLibFromFile libFile
-        Nothing -> return Nothing
-    _noRoot -> return Nothing
-
--- TODO: this traverses the filesystem
-tryGetLibFileFromRootPath :: (MonadIO m) => FilePath -> m (Maybe AgdaLibFile)
-#if MIN_VERSION_Agda(2,8,0)
-tryGetLibFileFromRootPath root = do
-  maybeLibFiles <- tryRunLibM $ getAgdaLibFile root
-  case maybeLibFiles of
-    Just (libFile:_) -> return $ Just libFile
-    _ -> return Nothing
-#else
-tryGetLibFileFromRootPath root = do
-  libFiles <- runLibErrorIO $ getAgdaLibFiles' root
-  return $ listToMaybe libFiles
-#endif
 
 agdaLibFromFile :: (MonadIO m) => AgdaLibFile -> m AgdaLib
 agdaLibFromFile agdaLibFile = do

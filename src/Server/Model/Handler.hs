@@ -7,6 +7,7 @@
 
 module Server.Model.Handler
   ( notificationHandlerWithAgdaLib,
+    takeOverNotificationHandlerWithAgdaLib,
     requestHandlerWithAgdaFile,
   )
 where
@@ -24,9 +25,11 @@ import qualified Language.LSP.Protocol.Message as LSP
 import qualified Language.LSP.Protocol.Message as Lsp
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Server as LSP
-import Monad (ServerM, askModel, catchTCError, findAgdaLib)
+import Monad (ServerM, askModel, catchTCError)
+import Server.AgdaLibResolver (findAgdaLib)
 import qualified Server.Model as Model
 import Server.Model.Monad (WithAgdaFileM, WithAgdaLibM, runWithAgdaFileT, runWithAgdaLibT)
+import qualified Server.Model.Monad as LSP
 #if MIN_VERSION_Agda(2,7,0)
 #else
 import Agda.TypeChecking.Errors ()
@@ -46,7 +49,15 @@ notificationHandlerWithAgdaLib ::
   LSP.SMethod m ->
   NotificationHandlerWithAgdaLib m ->
   LSP.Handlers ServerM
-notificationHandlerWithAgdaLib m handlerWithAgdaLib = LSP.notificationHandler m $ \notification -> do
+notificationHandlerWithAgdaLib m handlerWithAgdaLib =
+  LSP.notificationHandler m $ flip takeOverNotificationHandlerWithAgdaLib handlerWithAgdaLib
+
+takeOverNotificationHandlerWithAgdaLib ::
+  (LSP.HasTextDocument (LSP.MessageParams m) textdoc, LSP.HasUri textdoc LSP.Uri) =>
+  LSP.TNotificationMessage m ->
+  NotificationHandlerWithAgdaLib m ->
+  ServerM ()
+takeOverNotificationHandlerWithAgdaLib notification handlerWithAgdaLib = do
   let uri = notification ^. LSP.params . LSP.textDocument . LSP.uri
       normUri = LSP.toNormalizedUri uri
   agdaLib <- findAgdaLib normUri

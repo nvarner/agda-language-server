@@ -2,18 +2,24 @@ module Language.LSP.Protocol.Types.Uri.More
   ( getNormalizedUri,
     isUriAncestorOf,
     uriHeightAbove,
+    uriParent,
+    uriExtension,
     uriToPossiblyInvalidAbsolutePath,
     uriToPossiblyInvalidFilePath,
   )
 where
 
 import Agda.Utils.FileName (AbsolutePath (AbsolutePath), absolute)
+import Agda.Utils.Lens (set, (^.))
+import Agda.Utils.List (initMaybe, lastMaybe)
 import Agda.Utils.Maybe (fromMaybe)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Language.LSP.Protocol.Types (uriToFilePath)
 import qualified Language.LSP.Protocol.Types as LSP
+import qualified Text.URI as ParsedUri
+import qualified Text.URI.Lens as ParsedUriLens
 
 getNormalizedUri :: LSP.NormalizedUri -> Text
 getNormalizedUri = LSP.getUri . LSP.fromNormalizedUri
@@ -59,6 +65,23 @@ uriHeightAbove ancestor descendant =
       if Text.null path
         then 0
         else Text.count "/" path + 1
+
+uriParent :: LSP.NormalizedUri -> Maybe LSP.NormalizedUri
+uriParent uri = do
+  parsedUri <- ParsedUri.mkURI $ getNormalizedUri uri
+  pathInit <- initMaybe $ parsedUri ^. ParsedUriLens.uriPath
+  let newParsedUri = set ParsedUriLens.uriPath pathInit parsedUri
+  return $ LSP.toNormalizedUri $ LSP.Uri $ ParsedUri.render newParsedUri
+
+uriExtension :: LSP.NormalizedUri -> Text
+uriExtension uri = fromMaybe "" $ do
+  parsedUri <- ParsedUri.mkURI $ getNormalizedUri uri
+  pathEndRefined <- lastMaybe $ parsedUri ^. ParsedUriLens.uriPath
+  let pathEnd = ParsedUri.unRText pathEndRefined
+  let (prefix, suffix) = Text.breakOnEnd "." pathEnd
+  if Text.null prefix -- The prefix will contain the final ".", if one is found
+    then Nothing
+    else return $ "." <> suffix
 
 uriToPossiblyInvalidAbsolutePath :: (MonadIO m) => LSP.NormalizedUri -> m AbsolutePath
 uriToPossiblyInvalidAbsolutePath uri = do

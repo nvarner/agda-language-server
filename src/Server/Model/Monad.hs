@@ -44,7 +44,7 @@ import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Protocol.Types.Uri.More as LSP
 import Language.LSP.Server (LspM)
 import qualified Language.LSP.Server as LSP
-import Monad (ServerM, ServerT, askModel, catchTCError, findAgdaLib)
+import Monad (ServerM, ServerT, askModel, catchTCError)
 import Options (Config)
 import qualified Server.Model as Model
 import Server.Model.AgdaFile (AgdaFile)

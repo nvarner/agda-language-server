@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
 
 module Monad where
@@ -37,11 +38,15 @@ import qualified Language.LSP.Server as LSP
 import Options
 import Server.CommandController (CommandController)
 import qualified Server.CommandController as CommandController
+import Server.Filesystem (MonadFilesystem)
+import qualified Server.Filesystem as FS
 import Server.Model (Model)
 import qualified Server.Model as Model
-import Server.Model.AgdaLib (AgdaLib, agdaLibFromFs, initAgdaLib)
+import Server.Model.AgdaLib (AgdaLib, initAgdaLib)
 import Server.ResponseController (ResponseController)
 import qualified Server.ResponseController as ResponseController
+import Server.VfsIndex (VfsIndex)
+import qualified Server.VfsIndex as VfsIndex
 import System.FilePath (takeDirectory)
 
 --------------------------------------------------------------------------------
@@ -54,6 +59,8 @@ data Env = Env
     envCommandController :: CommandController,
     envResponseChan :: Chan Response,
     envResponseController :: ResponseController,
+    envFilesystemProvider :: !FS.Layered,
+    envVfsIndex :: !(IORef VfsIndex),
     envModel :: !(IORef Model)
   }
 
@@ -65,6 +72,8 @@ createInitEnv options =
     <*> liftIO CommandController.new
     <*> liftIO newChan
     <*> liftIO ResponseController.new
+    <*> (pure $ FS.Layered [FS.Wrap FS.LspVirtualFilesystem, FS.Wrap FS.OsFilesystem])
+    <*> liftIO (newIORef VfsIndex.empty)
     <*> liftIO (newIORef Model.empty)
 
 --------------------------------------------------------------------------------
@@ -76,6 +85,9 @@ type ServerM = ServerT (LspM Config)
 
 runServerT :: Env -> ServerT m a -> m a
 runServerT = flip runReaderT
+
+instance MonadFilesystem ServerM where
+  askVfsIndex = askVfsIndex
 
 --------------------------------------------------------------------------------
 
@@ -89,6 +101,9 @@ writeLog' x = do
   chan <- asks envLogChan
   liftIO $ writeChan chan $ pack $ show x
 
+askFilesystemProvider :: (MonadIO m) => ServerT m FS.Layered
+askFilesystemProvider = asks envFilesystemProvider
+
 askModel :: (MonadIO m) => ServerT m Model
 askModel = do
   modelVar <- asks envModel
@@ -99,23 +114,15 @@ modifyModel f = do
   modelVar <- asks envModel
   liftIO $ modifyIORef' modelVar f
 
--- | Find cached 'AgdaLib', or else make one from @.agda-lib@ files on the file
--- system, or else provide a default
-findAgdaLib :: (MonadIO m) => LSP.NormalizedUri -> ServerT m AgdaLib
-findAgdaLib uri = do
-  model <- askModel
-  case Model.getKnownAgdaLib uri model of
-    Just lib -> return lib
-    Nothing -> do
-      lib <- case LSP.uriToFilePath $ LSP.fromNormalizedUri uri of
-        Just path -> do
-          lib <- agdaLibFromFs $ takeDirectory path
-          case lib of
-            Just lib -> return lib
-            Nothing -> initAgdaLib
-        Nothing -> initAgdaLib
-      modifyModel $ Model.withAgdaLib lib
-      return lib
+askVfsIndex :: (MonadIO m) => ServerT m VfsIndex
+askVfsIndex = do
+  vfsIndexVar <- asks envVfsIndex
+  liftIO $ readIORef vfsIndexVar
+
+modifyVfsIndex :: (MonadIO m) => (VfsIndex -> VfsIndex) -> ServerT m ()
+modifyVfsIndex f = do
+  vfsIndexVar <- asks envVfsIndex
+  liftIO $ modifyIORef' vfsIndexVar f
 
 catchTCError :: ServerM a -> (TCM.TCErr -> ServerM a) -> ServerM a
 catchTCError m h =
