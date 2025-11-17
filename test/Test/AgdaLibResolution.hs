@@ -6,6 +6,7 @@ import Indexer (indexFile, usingSrcAsCurrent)
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Server as LSP
 import Monad (runServerT)
+import Server.AgdaLibResolver (findAgdaLib)
 import Server.Model.Monad (MonadAgdaLib (askAgdaLib), runWithAgdaLib)
 import System.Directory (makeAbsolute)
 import Test.Tasty (TestTree, testGroup)
@@ -38,10 +39,13 @@ tests =
         LSP.runLspT undefined $ do
           env <- TestData.getServerEnv model
           runServerT env $ do
-            runWithAgdaLib (LSP.filePathToUri absConstPath) $ do
-              lib <- askAgdaLib
-              _ <- liftIO $ assertFailure $ prettyShow lib
-              constSrc <- TestData.parseSourceFromPath constPath
-              _ <- indexFile constSrc
-              return ()
+            lib <- findAgdaLib absConstPath
+            liftIO $ assertFailure $ prettyShow lib
+
+            -- runWithAgdaLib (LSP.filePathToUri absConstPath) $ do
+            --   lib <- askAgdaLib
+            --   _ <- liftIO $ assertFailure $ prettyShow lib
+            --   constSrc <- TestData.parseSourceFromPath constPath
+            --   _ <- indexFile constSrc
+            --   return ()
     ]

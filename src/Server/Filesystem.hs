@@ -4,6 +4,7 @@
 
 module Server.Filesystem
   ( FileId,
+    fileIdToUri,
     fileIdToPossiblyInvalidAbsolutePath,
     fileIdParent,
     fileIdExtension,
@@ -39,8 +40,8 @@ import qualified Language.LSP.Server as LSP
 import qualified Language.LSP.VFS as VFS
 import Options (Config)
 import Server.VfsIndex (VfsIndex, getEntry, getEntryChildren)
-import System.Directory (canonicalizePath, getDirectoryContents)
-import System.FilePath (takeExtension, (</>))
+import System.Directory (canonicalizePath, doesDirectoryExist, getDirectoryContents)
+import System.FilePath (takeDirectory, takeExtension, (</>))
 import System.IO.Error (isPermissionError)
 
 data FileId
@@ -78,9 +79,19 @@ fileIdToPossiblyInvalidAbsolutePath (LocalFilePath path) = liftIO $ absolute pat
 fileIdParent :: (MonadIO m) => FileId -> m (Maybe FileId)
 fileIdParent (Uri uri) = return $ Uri <$> LSP.uriParent uri
 fileIdParent (LocalFilePath path) = do
-  -- Taken from Agda's findProjectConfig
-  up <- liftIO $ canonicalizePath $ path </> ".."
-  if up == path then return Nothing else return $ Just $ LocalFilePath up
+  isDir <- liftIO $ doesDirectoryExist path
+  if isDir
+    then liftIO $ dirParent path
+    else return $ fileParent path
+  where
+    -- Taken from Agda's findProjectConfig
+    dirParent :: FilePath -> IO (Maybe FileId)
+    dirParent dirPath = do
+      up <- canonicalizePath $ path </> ".."
+      if up == path then return Nothing else return $ Just $ LocalFilePath up
+
+    fileParent :: FilePath -> Maybe FileId
+    fileParent filePath = Just $ LocalFilePath $ takeDirectory filePath
 
 fileIdExtension :: FileId -> Text
 fileIdExtension (Uri uri) = LSP.uriExtension uri
@@ -150,7 +161,7 @@ instance Provider OsFilesystem where
     case tryFileIdToFilePath fileId of
       Nothing -> return Nothing
       Just filePath -> do
-        let result :: IO (Either ReadException File)
+        let result :: IO (Either E.IOException File)
             result = try $ do
               contents <- Strict.toStrict <$> readTextFile filePath
               return $ File contents
@@ -164,8 +175,9 @@ instance Provider OsFilesystem where
           $ (flip catchIO)
             (\e -> if isPermissionError e then return [] else E.throwIO e)
           $ do
-            children <- liftIO $ getDirectoryContents parent
-            return $ LocalFilePath <$> children
+            relativeChildren <- liftIO $ getDirectoryContents parent
+            let absoluteChildren = fmap (\child -> parent </> child) relativeChildren
+            return $ LocalFilePath <$> absoluteChildren
 
 -- TODO: Proper WASM support probably means custom extensions of LSP for
 -- filesystem access. When/if these are implemented, they should get a provider

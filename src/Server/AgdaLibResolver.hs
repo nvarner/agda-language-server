@@ -12,14 +12,16 @@ import Server.Model.AgdaLib (AgdaLib, agdaLibFromFile, initAgdaLib)
 
 -- | Find cached 'AgdaLib', or else make one from @.agda-lib@ files on the file
 -- system, or else provide a default
-findAgdaLib :: LSP.NormalizedUri -> ServerM AgdaLib
-findAgdaLib uri = do
+findAgdaLib :: (FS.IsFileId f) => f -> ServerM AgdaLib
+findAgdaLib isFileId = do
+  let fileId = FS.toFileId isFileId
+  let uri = FS.fileIdToUri fileId
   model <- askModel
   case Model.getKnownAgdaLib uri model of
     Just lib -> return lib
     Nothing -> do
       provider <- askFilesystemProvider
-      result <- searchFilesystemForAgdaLib provider uri
+      result <- searchFilesystemForAgdaLib provider fileId
       lib <- case result of
         Just lib -> return lib
         Nothing -> initAgdaLib

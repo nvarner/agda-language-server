@@ -185,6 +185,6 @@ getServerEnv model =
     <*> liftIO CommandController.new
     <*> liftIO newChan
     <*> liftIO ResponseController.new
-    <*> (pure $ FS.Layered [FS.Wrap FS.LspVirtualFilesystem, FS.Wrap FS.OsFilesystem])
+    <*> (pure $ FS.Layered [FS.Wrap FS.OsFilesystem])
     <*> liftIO (newIORef VfsIndex.empty)
     <*> liftIO (newIORef model)
