@@ -55,6 +55,7 @@ import Agda.Utils.FileId (File, getIdFile)
 #endif
 #if MIN_VERSION_Agda(2,7,0)
 import Agda.Interaction.Response (Response_boot(Resp_HighlightingInfo))
+import Server.AgdaLibResolver (findAgdaLib)
 #else
 import Agda.Interaction.Response (Response(Resp_HighlightingInfo))
 #endif
@@ -233,9 +234,7 @@ type WithAgdaLibM = WithAgdaLibT ServerM
 
 runWithAgdaLib :: LSP.Uri -> WithAgdaLibM a -> ServerM a
 runWithAgdaLib uri x = do
-  let normUri = LSP.toNormalizedUri uri
-  model <- askModel
-  agdaLib <- Model.getAgdaLib normUri model
+  agdaLib <- findAgdaLib uri
   runWithAgdaLibT agdaLib x
 
 instance (MonadIO m) => MonadAgdaLib (WithAgdaLibT m) where

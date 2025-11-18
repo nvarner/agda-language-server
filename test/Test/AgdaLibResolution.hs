@@ -15,7 +15,7 @@ import Monad (runServerT)
 import Server.AgdaLibResolver (findAgdaLib)
 import qualified Server.Filesystem as FS
 import Server.Model.AgdaLib (AgdaLibOrigin (FromFile), agdaLibIncludes, agdaLibName, agdaLibOrigin)
-import Server.Model.Monad (MonadAgdaLib, askAgdaLib, runWithAgdaLib)
+import Server.Model.Monad (MonadAgdaLib, askAgdaLib, runWithAgdaLib, runWithAgdaLibT)
 import System.Directory (makeAbsolute)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit (testCase, (@?=))
@@ -31,17 +31,7 @@ tests :: TestTree
 tests =
   testGroup
     "Agda lib resolution"
-    [ testCase "Module without imports in lib without dependencies" $ do
-        model <- TestData.getModel
-
-        LSP.runLspT undefined $ do
-          env <- TestData.getServerEnv model
-          runServerT env $ do
-            runWithAgdaLib (LSP.filePathToUri natPath) $ do
-              natSrc <- TestData.parseSourceFromPath natPath
-              _ <- indexFile natSrc
-              return (),
-      testCase "Module with imports in lib without lib dependencies" $ do
+    [ testCase "Explicit" $ do
         model <- TestData.getModel
 
         absConstPath <- makeAbsolute constPath
@@ -59,5 +49,25 @@ tests =
             liftIO $ lib ^. agdaLibName @?= "no-deps"
 #endif
             liftIO $ lib ^. agdaLibOrigin @?= FromFile (FS.LocalFilePath absAgdaLibPath)
-            liftIO $ lib ^. agdaLibIncludes @?= [FS.LocalFilePath absSrcPath]
+            liftIO $ lib ^. agdaLibIncludes @?= [FS.LocalFilePath absSrcPath],
+      testCase "Module without imports in lib without dependencies" $ do
+        model <- TestData.getModel
+
+        LSP.runLspT undefined $ do
+          env <- TestData.getServerEnv model
+          runServerT env $ do
+            runWithAgdaLib (LSP.filePathToUri natPath) $ do
+              natSrc <- TestData.parseSourceFromPath natPath
+              _ <- indexFile natSrc
+              return (),
+      testCase "Module with imports in lib without lib dependencies" $ do
+        model <- TestData.getModel
+
+        LSP.runLspT undefined $ do
+          env <- TestData.getServerEnv model
+          runServerT env $ do
+            runWithAgdaLib (LSP.filePathToUri constPath) $ do
+              constSrc <- TestData.parseSourceFromPath constPath
+              _ <- indexFile constSrc
+              return ()
     ]
