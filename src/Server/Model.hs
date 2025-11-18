@@ -2,7 +2,6 @@ module Server.Model
   ( Model (Model),
     empty,
     getKnownAgdaLib,
-    getAgdaLib,
     withAgdaLib,
     getAgdaFile,
     setAgdaFile,
@@ -36,11 +35,6 @@ agdaFiles f a = f (_modelAgdaFiles a) <&> \x -> a {_modelAgdaFiles = x}
 
 getKnownAgdaLib :: LSP.NormalizedUri -> Model -> Maybe AgdaLib
 getKnownAgdaLib uri = find (`isAgdaLibForUri` uri) . _modelAgdaLibs
-
--- | Get the Agda library for the given URI if known. Otherwise, get a generic
--- default Agda library.
-getAgdaLib :: (MonadIO m) => LSP.NormalizedUri -> Model -> m AgdaLib
-getAgdaLib uri = maybe initAgdaLib return . getKnownAgdaLib uri
 
 -- | Add an 'AgdaLib' to the model
 withAgdaLib :: AgdaLib -> Model -> Model

@@ -100,7 +100,7 @@ requestHandlerWithAgdaFile m handlerWithAgdaFile = LSP.requestHandler m $ \req r
       let message = "Request for unknown Agda file at URI: " <> LSP.getUri uri
       responder $ Left $ LSP.TResponseError (LSP.InR LSP.ErrorCodes_InvalidParams) message Nothing
     Just agdaFile -> do
-      agdaLib <- Model.getAgdaLib normUri model
+      agdaLib <- findAgdaLib normUri
       let responderWithAgdaFile = lift . responder
       let handler = tryTC $ runWithAgdaFileT agdaLib agdaFile $ handlerWithAgdaFile req responderWithAgdaFile
 
