@@ -1,6 +1,10 @@
+{-# LANGUAGE CPP #-}
+
 module Test.AgdaLibResolution (tests) where
 
+#if MIN_VERSION_Agda(2,8,0)
 import Agda.Interaction.Library (parseLibName)
+#endif
 import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
@@ -49,7 +53,11 @@ tests =
           runServerT env $ do
             lib <- findAgdaLib absConstPath
 
+#if MIN_VERSION_Agda(2,8,0)
             liftIO $ lib ^. agdaLibName @?= parseLibName "no-deps"
+#else
+            liftIO $ lib ^. agdaLibName @?= "no-deps"
+#endif
             liftIO $ lib ^. agdaLibOrigin @?= FromFile (FS.LocalFilePath absAgdaLibPath)
             liftIO $ lib ^. agdaLibIncludes @?= [FS.LocalFilePath absSrcPath]
     ]

@@ -28,9 +28,9 @@ import Agda.Utils.IO (catchIO)
 import Agda.Utils.IO.UTF8 (ReadException, readTextFile)
 import Agda.Utils.List (nubM)
 import Agda.Utils.Maybe (fromMaybe, maybe)
-import Agda.Utils.Monad (foldM, forM)
 import Control.Exception (try, tryJust)
 import qualified Control.Exception as E
+import Control.Monad (foldM, forM)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import qualified Data.Strict as Strict
 import Data.Text (Text)

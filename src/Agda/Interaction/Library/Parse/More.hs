@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -82,12 +83,20 @@ agdaLibFields =
   -- Andreas, 2017-08-23, issue #2708, field "name" is optional.
   [ optionalField "name" (\_ -> parseName) libName,
     optionalField "include" (\_ -> pure . concatMap parsePaths) libIncludes,
+#if MIN_VERSION_Agda(2,8,0)
     optionalField "depend" (\_ -> pure . map parseLibName . concatMap splitCommas) libDepends,
+#else
+    optionalField "depend" (\_ -> pure . concatMap splitCommas) libDepends,
+#endif
     optionalField "flags" (\r -> pure . foldMap (parseFlags r)) libPragmas
   ]
   where
     parseName :: [String] -> P LibName
+#if MIN_VERSION_Agda(2,8,0)
     parseName [s] | [name] <- words s = pure $ parseLibName name
+#else
+    parseName [s] | [name] <- words s = pure name
+#endif
     parseName ls = throwError $ BadLibraryName $ unwords ls
 
     parsePaths :: String -> [FilePath]

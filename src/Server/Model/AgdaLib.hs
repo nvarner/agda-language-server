@@ -39,7 +39,7 @@ import Agda.Syntax.Common.Pretty (Pretty, pretty, vcat, prettyAssign, text, psho
 import qualified Text.URI as ParsedUri
 import qualified Data.Text as Text
 import qualified Server.Filesystem as FS
-import Agda.Utils.Monad (forM)
+import Control.Monad (forM)
 
 data AgdaLibOrigin = FromFile !FS.FileId | Defaulted
   deriving (Show, Eq)
