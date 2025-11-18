@@ -145,7 +145,7 @@ fakeUri = LSP.toNormalizedUri $ LSP.Uri "file:///home/user2/project/Test.agda"
 getModel :: IO Model
 getModel = do
   let includes1 =
-        LSP.toNormalizedUri . LSP.Uri
+        FS.Uri . LSP.toNormalizedUri . LSP.Uri
           <$> [ "file:///home/user/project1/",
                 "file:///home/user2/project2/",
                 "https://example.com/agda/"
@@ -155,7 +155,7 @@ getModel = do
       <&> set agdaLibIncludes includes1
 
   let includes2 =
-        LSP.toNormalizedUri . LSP.Uri
+        FS.Uri . LSP.toNormalizedUri . LSP.Uri
           <$> ["file:///home/user/project2/"]
   testLib2 <-
     initAgdaLib

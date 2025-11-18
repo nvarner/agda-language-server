@@ -3,9 +3,10 @@
 {-# LANGUAGE FlexibleInstances #-}
 
 module Server.Filesystem
-  ( FileId,
+  ( FileId (..),
     fileIdToUri,
     fileIdToPossiblyInvalidAbsolutePath,
+    fileIdRelativeTo,
     fileIdParent,
     fileIdExtension,
     IsFileId (..),
@@ -20,11 +21,13 @@ module Server.Filesystem
   )
 where
 
+import Agda.Syntax.Common.Pretty (Pretty, pretty, prettyShow)
 import Agda.Utils.Either (maybeRight)
 import Agda.Utils.FileName (AbsolutePath, absolute, sameFile)
 import Agda.Utils.IO (catchIO)
 import Agda.Utils.IO.UTF8 (ReadException, readTextFile)
 import Agda.Utils.List (nubM)
+import Agda.Utils.Maybe (fromMaybe, maybe)
 import Agda.Utils.Monad (foldM, forM)
 import Control.Exception (try, tryJust)
 import qualified Control.Exception as E
@@ -41,12 +44,21 @@ import qualified Language.LSP.VFS as VFS
 import Options (Config)
 import Server.VfsIndex (VfsIndex, getEntry, getEntryChildren)
 import System.Directory (canonicalizePath, doesDirectoryExist, getDirectoryContents)
-import System.FilePath (takeDirectory, takeExtension, (</>))
+import System.FilePath (isAbsolute, takeDirectory, takeExtension, (</>))
 import System.IO.Error (isPermissionError)
+import qualified Text.URI as ParsedUri
 
 data FileId
   = Uri !LSP.NormalizedUri
   | LocalFilePath !FilePath
+  deriving (Eq)
+
+instance Pretty FileId where
+  pretty (Uri uri) = pretty $ LSP.getNormalizedUri uri
+  pretty (LocalFilePath path) = pretty path
+
+instance Show FileId where
+  show = prettyShow
 
 referToSameFile :: FileId -> FileId -> IO Bool
 referToSameFile a b =
@@ -67,6 +79,9 @@ fileIdToUri = \case
   Uri uri -> uri
   LocalFilePath filePath -> LSP.toNormalizedUri $ LSP.filePathToUri filePath
 
+fileIdToParsedUri :: FileId -> Maybe ParsedUri.URI
+fileIdToParsedUri = ParsedUri.mkURI . LSP.getNormalizedUri . fileIdToUri
+
 tryFileIdToFilePath :: FileId -> Maybe FilePath
 tryFileIdToFilePath = \case
   Uri uri -> LSP.uriToFilePath $ LSP.fromNormalizedUri uri
@@ -75,6 +90,24 @@ tryFileIdToFilePath = \case
 fileIdToPossiblyInvalidAbsolutePath :: (MonadIO m) => FileId -> m AbsolutePath
 fileIdToPossiblyInvalidAbsolutePath (Uri uri) = LSP.uriToPossiblyInvalidAbsolutePath uri
 fileIdToPossiblyInvalidAbsolutePath (LocalFilePath path) = liftIO $ absolute path
+
+fileIdIsAbsolute :: FileId -> Bool
+fileIdIsAbsolute (Uri uri) =
+  maybe
+    True
+    ParsedUri.isPathAbsolute
+    (ParsedUri.mkURI (LSP.getNormalizedUri uri))
+fileIdIsAbsolute (LocalFilePath path) = isAbsolute path
+
+-- | Makes the first 'FileId' absolute, treating the second 'FileId' as the base
+fileIdRelativeTo :: (MonadIO m) => FileId -> FileId -> m FileId
+fileIdRelativeTo fileId _baseFileId | fileIdIsAbsolute fileId = return fileId
+fileIdRelativeTo (LocalFilePath path) (LocalFilePath basePath) = fmap LocalFilePath . liftIO $ canonicalizePath $ basePath </> path
+fileIdRelativeTo fileId baseFileId = fromMaybe (pure fileId) $ do
+  uri <- fileIdToParsedUri fileId
+  baseUri <- fileIdToParsedUri baseFileId
+  absUri <- uri `ParsedUri.relativeTo` baseUri
+  return $ return $ Uri $ LSP.toNormalizedUri $ LSP.Uri $ ParsedUri.render absUri
 
 fileIdParent :: (MonadIO m) => FileId -> m (Maybe FileId)
 fileIdParent (Uri uri) = return $ Uri <$> LSP.uriParent uri

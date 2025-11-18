@@ -1,21 +1,27 @@
 module Test.AgdaLibResolution (tests) where
 
+import Agda.Interaction.Library (parseLibName)
 import Agda.Syntax.Common.Pretty (prettyShow)
+import Agda.Utils.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
 import Indexer (indexFile, usingSrcAsCurrent)
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Server as LSP
 import Monad (runServerT)
 import Server.AgdaLibResolver (findAgdaLib)
-import Server.Model.Monad (MonadAgdaLib (askAgdaLib), runWithAgdaLib)
+import qualified Server.Filesystem as FS
+import Server.Model.AgdaLib (AgdaLibOrigin (FromFile), agdaLibIncludes, agdaLibName, agdaLibOrigin)
+import Server.Model.Monad (MonadAgdaLib, askAgdaLib, runWithAgdaLib)
 import System.Directory (makeAbsolute)
 import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.HUnit (assertFailure, testCase)
+import Test.Tasty.HUnit (testCase, (@?=))
 import qualified TestData
 
-natPath, constPath :: FilePath
+natPath, constPath, agdaLibPath, srcPath :: FilePath
 natPath = "test/data/libs/no-deps/src/Data/Nat.agda"
 constPath = "test/data/libs/no-deps/src/Constants.agda"
+agdaLibPath = "test/data/libs/no-deps/no-deps.agda-lib"
+srcPath = "test/data/libs/no-deps/src"
 
 tests :: TestTree
 tests =
@@ -35,17 +41,15 @@ tests =
         model <- TestData.getModel
 
         absConstPath <- makeAbsolute constPath
+        absAgdaLibPath <- makeAbsolute agdaLibPath
+        absSrcPath <- makeAbsolute srcPath
 
         LSP.runLspT undefined $ do
           env <- TestData.getServerEnv model
           runServerT env $ do
             lib <- findAgdaLib absConstPath
-            liftIO $ assertFailure $ prettyShow lib
 
-            -- runWithAgdaLib (LSP.filePathToUri absConstPath) $ do
-            --   lib <- askAgdaLib
-            --   _ <- liftIO $ assertFailure $ prettyShow lib
-            --   constSrc <- TestData.parseSourceFromPath constPath
-            --   _ <- indexFile constSrc
-            --   return ()
+            liftIO $ lib ^. agdaLibName @?= parseLibName "no-deps"
+            liftIO $ lib ^. agdaLibOrigin @?= FromFile (FS.LocalFilePath absAgdaLibPath)
+            liftIO $ lib ^. agdaLibIncludes @?= [FS.LocalFilePath absSrcPath]
     ]

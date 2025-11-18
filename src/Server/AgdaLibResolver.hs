@@ -39,7 +39,7 @@ searchFilesystemForAgdaLib provider agdaIsFileId = do
       case agdaLibFile of
         Nothing -> return Nothing
         Just agdaLibFile -> do
-          agdaLib <- agdaLibFromFile agdaLibFile
+          agdaLib <- agdaLibFromFile agdaLibFile fileId
           return $ Just agdaLib
   where
     searchForAgdaLibFile :: (FS.Provider p) => p -> FS.FileId -> ServerM (Maybe FS.FileId)

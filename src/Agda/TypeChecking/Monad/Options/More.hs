@@ -10,6 +10,7 @@ import Agda.Utils.Lens ((^.))
 import qualified Agda.Utils.List1 as List1
 import Control.Monad.IO.Class (liftIO)
 import Language.LSP.Protocol.Types.Uri.More (uriToPossiblyInvalidFilePath)
+import qualified Server.Filesystem as FS
 import Server.Model.AgdaLib (AgdaLib, agdaLibDependencies, agdaLibIncludes)
 import Server.Model.Monad (MonadAgdaLib (askAgdaLib))
 import System.Directory (getCurrentDirectory)
@@ -54,5 +55,5 @@ addDefaultLibrariesByLib agdaLib o
   | not (null $ optLibraries o) || not (optUseLibs o) = o
   | otherwise = do
       let libs = agdaLib ^. agdaLibDependencies
-      let incs = uriToPossiblyInvalidFilePath <$> agdaLib ^. agdaLibIncludes
+      let incs = uriToPossiblyInvalidFilePath . FS.fileIdToUri <$> agdaLib ^. agdaLibIncludes
       o {optIncludePaths = incs ++ optIncludePaths o, optLibraries = libs}
