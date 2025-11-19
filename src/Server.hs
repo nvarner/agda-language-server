@@ -102,7 +102,7 @@ syncOptions =
       _change = Just TextDocumentSyncKind_Incremental, -- receive change notifications from the client
       _willSave = Just False, -- receive willSave notifications from the client
       _willSaveWaitUntil = Just False, -- receive willSave notifications from the client
-      _save = Just $ InR $ SaveOptions (Just True) -- includes the document content on save, so that we don't have to read it from the disk (not sure if this is still true in lsp 2)
+      _save = Just $ InR $ SaveOptions (Just False)
     }
 
 -- handlers of the LSP server
