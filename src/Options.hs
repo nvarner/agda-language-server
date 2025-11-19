@@ -43,12 +43,13 @@ data Options = Options
     optRawResponses :: Bool,
     optSetup :: Bool,
     optHelp :: Bool,
-    optVersion :: Bool
+    optVersion :: Bool,
+    optStdin :: Bool
   }
 
 defaultOptions :: Options
 defaultOptions =
-  Options {optViaTCP = Nothing, optRawAgdaOptions = [], optRawResponses = False, optSetup = False, optHelp = False, optVersion = False}
+  Options {optViaTCP = Nothing, optRawAgdaOptions = [], optRawResponses = False, optSetup = False, optHelp = False, optVersion = False, optStdin = False}
 
 options :: [OptDescr (Options -> Options)]
 options =
@@ -84,7 +85,12 @@ options =
       ['V']
       ["version"]
       (NoArg (\opts -> opts {optVersion = True}))
-      "print version information and exit"
+      "print version information and exit",
+    Option
+      []
+      ["stdio"]
+      (NoArg (\opts -> opts {optStdin = True}))
+      "connect via stdio"
   ]
 
 versionNumber :: Int

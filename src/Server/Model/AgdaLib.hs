@@ -71,7 +71,9 @@ initAgdaLibWithOrigin origin = do
   let libName = ""
   let tcState = TCM.initState
 #endif
-  tcStateRef <- liftIO $ newIORef tcState
+  let persistentState = TCM.stPersistentState tcState
+  let tcState' = tcState { TCM.stPersistentState = persistentState { TCM.stInteractionOutputCallback = \_ -> return () } }
+  tcStateRef <- liftIO $ newIORef tcState'
   let tcEnv = TCM.initEnv
   let optionsPragma = OptionsPragma [] empty
   return $ AgdaLib libName [] optionsPragma [] tcStateRef tcEnv origin
