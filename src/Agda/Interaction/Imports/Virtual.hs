@@ -30,7 +30,7 @@ import Language.LSP.Protocol.Types.Uri.More (uriToPossiblyInvalidAbsolutePath)
 import qualified Language.LSP.Server as LSP
 import qualified Language.LSP.VFS as VFS
 import Server.Model.AgdaLib (agdaLibToFile)
-import Server.Model.Monad (MonadAgdaLib (askAgdaLib))
+import Server.Model.Monad (MonadAgdaProject, askAgdaLib)
 
 data VSourceFile = VSourceFile
   { vSrcFileSrcFile :: SourceFile,
@@ -76,7 +76,7 @@ vSrcFromUri normUri file = do
 #endif
 
 parseSourceFromContents ::
-  (TCM.MonadTCM m, TCM.MonadTrace m, MonadAgdaLib m) =>
+  (TCM.MonadTrace m, MonadAgdaProject m) =>
   LSP.NormalizedUri ->
   SourceFile ->
   Text.Text ->
@@ -113,6 +113,6 @@ parseSourceFromContents srcUri srcFile contentsStrict = do
         }
 
 -- | Based on @parseSource@
-parseVSource :: (TCM.MonadTCM m, TCM.MonadTrace m, MonadAgdaLib m) => VSourceFile -> m Imp.Source
+parseVSource :: (TCM.MonadTCM m, TCM.MonadTrace m, MonadAgdaProject m) => VSourceFile -> m Imp.Source
 parseVSource (VSourceFile srcFile uri vFile) =
   parseSourceFromContents uri srcFile (VFS.virtualFileText vFile)

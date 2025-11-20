@@ -22,7 +22,7 @@ import qualified Server.CommandController as CommandController
 import Server.Model (Model)
 import Server.Model.AgdaLib (agdaLibIncludes)
 import Server.Model.Handler (requestHandlerWithAgdaFile)
-import Server.Model.Monad (MonadAgdaLib (askAgdaLib))
+import Server.Model.Monad (MonadAgdaProject, askAgdaLib)
 import qualified Server.ResponseController as ResponseController
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit (testCase, (@?), (@?=))

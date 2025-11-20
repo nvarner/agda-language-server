@@ -81,6 +81,7 @@ library
       Render.Utils
       Server
       Server.AgdaLibResolver
+      Server.AgdaProjectResolver
       Server.CommandController
       Server.Filesystem
       Server.Handler
@@ -89,6 +90,7 @@ library
       Server.Model
       Server.Model.AgdaFile
       Server.Model.AgdaLib
+      Server.Model.AgdaProject
       Server.Model.Handler
       Server.Model.Monad
       Server.Model.Symbol
@@ -241,6 +243,7 @@ test-suite als-test
       Render.Utils
       Server
       Server.AgdaLibResolver
+      Server.AgdaProjectResolver
       Server.CommandController
       Server.Filesystem
       Server.Handler
@@ -249,6 +252,7 @@ test-suite als-test
       Server.Model
       Server.Model.AgdaFile
       Server.Model.AgdaLib
+      Server.Model.AgdaProject
       Server.Model.Handler
       Server.Model.Monad
       Server.Model.Symbol

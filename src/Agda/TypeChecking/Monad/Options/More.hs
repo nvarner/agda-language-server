@@ -12,11 +12,11 @@ import Control.Monad.IO.Class (liftIO)
 import Language.LSP.Protocol.Types.Uri.More (uriToPossiblyInvalidFilePath)
 import qualified Server.Filesystem as FS
 import Server.Model.AgdaLib (AgdaLib, agdaLibDependencies, agdaLibIncludes)
-import Server.Model.Monad (MonadAgdaLib (askAgdaLib))
+import Server.Model.Monad (MonadAgdaProject, askAgdaLib)
 import System.Directory (getCurrentDirectory)
 
 setCommandLineOptionsByLib ::
-  (MonadTCM m, MonadAgdaLib m) =>
+  (MonadTCM m, MonadAgdaProject m) =>
   CommandLineOptions ->
   m ()
 setCommandLineOptionsByLib opts = do
@@ -24,7 +24,7 @@ setCommandLineOptionsByLib opts = do
   setCommandLineOptionsByLib' root opts
 
 setCommandLineOptionsByLib' ::
-  (MonadTCM m, MonadAgdaLib m) =>
+  (MonadTCM m, MonadAgdaProject m) =>
   AbsolutePath ->
   CommandLineOptions ->
   m ()
@@ -41,7 +41,7 @@ setCommandLineOptionsByLib' root opts = do
   TCM.liftTCM updateBenchmarkingStatus
 
 setLibraryPathsByLib ::
-  (MonadTCM m, MonadAgdaLib m) =>
+  (MonadTCM m, MonadAgdaProject m) =>
   CommandLineOptions ->
   m CommandLineOptions
 setLibraryPathsByLib o = do

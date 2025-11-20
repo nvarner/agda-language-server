@@ -43,7 +43,7 @@ import Control.Monad.Trans (lift)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Server.Model.AgdaFile (AgdaFile, emptyAgdaFile, insertRef, insertSymbolInfo)
-import Server.Model.Monad (WithAgdaLibM)
+import Server.Model.Monad (WithAgdaProjectM)
 import Server.Model.Symbol (Ref (Ref), RefKind (..), SymbolInfo (..), SymbolKind (..))
 
 data NamedArgUsage = NamedArgUsage
@@ -99,9 +99,9 @@ initEnv = do
   dataRecordParams <- liftIO $ newIORef mempty
   return $ Env agdaFile parent DeclBinding paramNames namedArgUsages dataRecordParams
 
-type IndexerM = ReaderT Env WithAgdaLibM
+type IndexerM = ReaderT Env WithAgdaProjectM
 
-execIndexerM :: IndexerM a -> WithAgdaLibM AgdaFile
+execIndexerM :: IndexerM a -> WithAgdaProjectM AgdaFile
 execIndexerM x = do
   env <- initEnv
   _ <- runReaderT x env
@@ -247,7 +247,7 @@ class TypeLike t where
   -- However, strings do lose semantic information otherwise available to us,
   -- so this representation may be switched in the future if that information is
   -- needed.
-  toTypeString :: t -> WithAgdaLibM (Maybe String)
+  toTypeString :: t -> WithAgdaProjectM (Maybe String)
 
 instance (TypeLike t) => TypeLike (Maybe t) where
   toTypeString = maybe (return Nothing) toTypeString

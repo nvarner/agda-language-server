@@ -23,9 +23,9 @@ import Indexer.Indexer (indexAst)
 import Indexer.Monad (execIndexerM)
 import Indexer.Postprocess (postprocess)
 import Server.Model.AgdaFile (AgdaFile)
-import Server.Model.Monad (WithAgdaLibM)
+import Server.Model.Monad (WithAgdaProjectM)
 
-usingSrcAsCurrent :: Imp.Source -> WithAgdaLibM a -> WithAgdaLibM a
+usingSrcAsCurrent :: Imp.Source -> WithAgdaProjectM a -> WithAgdaProjectM a
 usingSrcAsCurrent src x = do
   TCM.liftTCM TCM.resetState
 
@@ -43,7 +43,7 @@ usingSrcAsCurrent src x = do
   TCM.localTC (\e -> e {TCM.envCurrentPath = Just (srcFilePath $ Imp.srcOrigin src)}) x
 #endif
 
-withAstFor :: Imp.Source -> (TopLevelInfo -> WithAgdaLibM a) -> WithAgdaLibM a
+withAstFor :: Imp.Source -> (TopLevelInfo -> WithAgdaProjectM a) -> WithAgdaProjectM a
 withAstFor src f = usingSrcAsCurrent src $ do
 #if MIN_VERSION_Agda(2,8,0)
   let srcFile = Imp.srcOrigin src
@@ -60,7 +60,7 @@ withAstFor src f = usingSrcAsCurrent src $ do
 
 indexFile ::
   Imp.Source ->
-  WithAgdaLibM AgdaFile
+  WithAgdaProjectM AgdaFile
 indexFile src = withAstFor src $ \ast -> execIndexerM $ do
   indexAst ast
   postprocess

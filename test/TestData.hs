@@ -45,7 +45,7 @@ import qualified Server.CommandController as CommandController
 import Server.Model (Model (Model))
 import Server.Model.AgdaFile (AgdaFile, emptyAgdaFile)
 import Server.Model.AgdaLib (agdaLibIncludes, initAgdaLib)
-import Server.Model.Monad (runWithAgdaLib, MonadAgdaLib)
+import Server.Model.Monad (MonadAgdaProject, runWithAgdaProjectT)
 import qualified Server.ResponseController as ResponseController
 import System.FilePath (takeBaseName, (</>))
 import Agda.TypeChecking.Pretty (prettyTCM)
@@ -53,6 +53,8 @@ import Data.Text (Text)
 import Agda.Interaction.Imports.Virtual (parseSourceFromContents)
 import qualified Server.Filesystem as FS
 import qualified Server.VfsIndex as VfsIndex
+import Server.AgdaProjectResolver (findAgdaProject)
+import qualified Server.Model.AgdaProject as AgdaProject
 
 data AgdaFileDetails = AgdaFileDetails
   { fileName :: String,
@@ -69,13 +71,14 @@ agdaFileDetails inPath = do
   (file, interface) <- LSP.runLspT undefined $ do
     env <- TestData.getServerEnv model
     runServerT env $ do
-      let withSrc f = runWithAgdaLib uri $ do
+      project <- findAgdaProject uri
+      let withSrc f = runWithAgdaProjectT project $ do
             TCM.liftTCM $ TCM.setCommandLineOptions Agda.Interaction.Options.defaultOptions
             src <- parseSourceFromPath inPath
 
             f src
 
-      let onErr = \err -> runWithAgdaLib uri $ do
+      let onErr = \err -> runWithAgdaProjectT project $ do
             t <- TCM.liftTCM $ prettyTCM err
             error $ prettyShow t
 
@@ -104,7 +107,7 @@ parseSourceFromPath path = do
   TCM.liftTCM $ Imp.parseSource srcFile
 
 parseSourceFromPathAndContents ::
-  (TCM.MonadTCM m, TCM.MonadTrace m, MonadAgdaLib m) =>
+  (TCM.MonadTCM m, TCM.MonadTrace m, MonadAgdaProject m) =>
   FilePath ->
   Text ->
     m Imp.Source
@@ -153,6 +156,7 @@ getModel = do
   testLib1 <-
     initAgdaLib
       <&> set agdaLibIncludes includes1
+  testProject1 <- AgdaProject.new testLib1
 
   let includes2 =
         FS.Uri . LSP.toNormalizedUri . LSP.Uri
@@ -160,8 +164,10 @@ getModel = do
   testLib2 <-
     initAgdaLib
       <&> set agdaLibIncludes includes2
+  testProject2 <- AgdaProject.new testLib2
 
   let libs = [testLib1, testLib2]
+  let projects = [testProject1, testProject2]
 
   let testFile1 = emptyAgdaFile
   let testFile2 = emptyAgdaFile
@@ -174,7 +180,7 @@ getModel = do
             (fileUri3, testFile3)
           ]
 
-  return $ Model libs files
+  return $ Model libs projects files
 
 --------------------------------------------------------------------------------
 

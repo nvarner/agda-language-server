@@ -7,8 +7,6 @@ module Server.Model.AgdaLib
     agdaLibName,
     agdaLibIncludes,
     agdaLibDependencies,
-    agdaLibTcStateRef,
-    agdaLibTcEnv,
     agdaLibOrigin,
     isAgdaLibForUri,
     agdaLibFromFile,
@@ -49,8 +47,6 @@ data AgdaLib = AgdaLib
     _agdaLibIncludes :: ![FS.FileId],
     _agdaLibOptionsPragma :: !OptionsPragma,
     _agdaLibDependencies :: ![LibName],
-    _agdaLibTcStateRef :: !(IORef TCM.TCState),
-    _agdaLibTcEnv :: !TCM.TCEnv,
     _agdaLibOrigin :: !AgdaLibOrigin
   }
 
@@ -76,7 +72,7 @@ initAgdaLibWithOrigin origin = do
   tcStateRef <- liftIO $ newIORef tcState'
   let tcEnv = TCM.initEnv
   let optionsPragma = OptionsPragma [] empty
-  return $ AgdaLib libName [] optionsPragma [] tcStateRef tcEnv origin
+  return $ AgdaLib libName [] optionsPragma [] origin
 
 initAgdaLib :: (MonadIO m) => m AgdaLib
 initAgdaLib = initAgdaLibWithOrigin Defaulted
@@ -92,12 +88,6 @@ agdaLibOptionsPragma f a = f (_agdaLibOptionsPragma a) <&> \x -> a {_agdaLibOpti
 
 agdaLibDependencies :: Lens' AgdaLib [LibName]
 agdaLibDependencies f a = f (_agdaLibDependencies a) <&> \x -> a {_agdaLibDependencies = x}
-
-agdaLibTcStateRef :: Lens' AgdaLib (IORef TCM.TCState)
-agdaLibTcStateRef f a = f (_agdaLibTcStateRef a) <&> \x -> a {_agdaLibTcStateRef = x}
-
-agdaLibTcEnv :: Lens' AgdaLib TCM.TCEnv
-agdaLibTcEnv f a = f (_agdaLibTcEnv a) <&> \x -> a {_agdaLibTcEnv = x}
 
 agdaLibOrigin :: Lens' AgdaLib AgdaLibOrigin
 agdaLibOrigin f a = f (_agdaLibOrigin a) <&> \x -> a {_agdaLibOrigin = x}

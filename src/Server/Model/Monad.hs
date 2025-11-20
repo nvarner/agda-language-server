@@ -10,14 +10,14 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Server.Model.Monad
-  ( MonadAgdaLib (..),
+  ( MonadAgdaProject (..),
+    askAgdaLib,
     useAgdaLib,
     MonadAgdaFile (..),
     useAgdaFile,
-    WithAgdaLibT,
-    runWithAgdaLibT,
-    WithAgdaLibM,
-    runWithAgdaLib,
+    WithAgdaProjectT,
+    runWithAgdaProjectT,
+    WithAgdaProjectM,
     WithAgdaFileT,
     runWithAgdaFileT,
     WithAgdaFileM,
@@ -48,30 +48,39 @@ import Monad (ServerM, ServerT, askModel, catchTCError)
 import Options (Config)
 import qualified Server.Model as Model
 import Server.Model.AgdaFile (AgdaFile)
-import Server.Model.AgdaLib (AgdaLib, agdaLibTcEnv, agdaLibTcStateRef)
+import Server.Model.AgdaLib (AgdaLib)
+import Server.Model.AgdaProject (AgdaProject)
+import qualified Server.Model.AgdaProject as AgdaProject
 import Prelude hiding (null)
 #if MIN_VERSION_Agda(2,8,0)
 import Agda.Utils.FileId (File, getIdFile)
 #endif
 #if MIN_VERSION_Agda(2,7,0)
 import Agda.Interaction.Response (Response_boot(Resp_HighlightingInfo))
-import Server.AgdaLibResolver (findAgdaLib)
 #else
 import Agda.Interaction.Response (Response(Resp_HighlightingInfo))
 #endif
 
 --------------------------------------------------------------------------------
 
-class (MonadTCM m, ReadTCState m) => MonadAgdaLib m where
-  askAgdaLib :: m AgdaLib
-  localAgdaLib :: (AgdaLib -> AgdaLib) -> m a -> m a
+class (MonadTCM m, ReadTCState m) => MonadAgdaProject m where
+  askAgdaProject :: m AgdaProject
+  localAgdaProject :: (AgdaProject -> AgdaProject) -> m a -> m a
 
-useAgdaLib :: (MonadAgdaLib m) => Lens' AgdaLib a -> m a
+useAgdaProject :: (MonadAgdaProject m) => Lens' AgdaProject a -> m a
+useAgdaProject lens = do
+  agdaProject <- askAgdaProject
+  return $ agdaProject ^. lens
+
+askAgdaLib :: (MonadAgdaProject m) => m AgdaLib
+askAgdaLib = useAgdaProject AgdaProject.agdaLib
+
+useAgdaLib :: (MonadAgdaProject m) => Lens' AgdaLib a -> m a
 useAgdaLib lens = do
   agdaLib <- askAgdaLib
   return $ agdaLib ^. lens
 
-class (MonadAgdaLib m) => MonadAgdaFile m where
+class (MonadAgdaProject m) => MonadAgdaFile m where
   askAgdaFile :: m AgdaFile
   localAgdaFile :: (AgdaFile -> AgdaFile) -> m a -> m a
 
@@ -82,50 +91,50 @@ useAgdaFile lens = do
 
 --------------------------------------------------------------------------------
 
-defaultAskTC :: (MonadAgdaLib m) => m TCEnv
-defaultAskTC = useAgdaLib agdaLibTcEnv
+defaultAskTC :: (MonadAgdaProject m) => m TCEnv
+defaultAskTC = useAgdaProject AgdaProject.tcEnv
 
-defaultLocalTC :: (MonadAgdaLib m) => (TCEnv -> TCEnv) -> m a -> m a
-defaultLocalTC f = localAgdaLib (over agdaLibTcEnv f)
+defaultLocalTC :: (MonadAgdaProject m) => (TCEnv -> TCEnv) -> m a -> m a
+defaultLocalTC f = localAgdaProject (over AgdaProject.tcEnv f)
 
-defaultGetTC :: (MonadAgdaLib m) => m TCState
+defaultGetTC :: (MonadAgdaProject m) => m TCState
 defaultGetTC = do
-  tcStateRef <- useAgdaLib agdaLibTcStateRef
+  tcStateRef <- useAgdaProject AgdaProject.tcStateRef
   liftIO $ readIORef tcStateRef
 
-defaultPutTC :: (MonadAgdaLib m) => TCState -> m ()
+defaultPutTC :: (MonadAgdaProject m) => TCState -> m ()
 defaultPutTC tcState = do
-  tcStateRef <- useAgdaLib agdaLibTcStateRef
+  tcStateRef <- useAgdaProject AgdaProject.tcStateRef
   liftIO $ writeIORef tcStateRef tcState
 
-defaultModifyTC :: (MonadAgdaLib m) => (TCState -> TCState) -> m ()
+defaultModifyTC :: (MonadAgdaProject m) => (TCState -> TCState) -> m ()
 defaultModifyTC f = do
-  tcStateRef <- useAgdaLib agdaLibTcStateRef
+  tcStateRef <- useAgdaProject AgdaProject.tcStateRef
   liftIO $ modifyIORef' tcStateRef f
 
 -- Taken from TCMT implementation
-defaultLocallyTCState :: (MonadAgdaLib m) => Lens' TCState a -> (a -> a) -> m b -> m b
+defaultLocallyTCState :: (MonadAgdaProject m) => Lens' TCState a -> (a -> a) -> m b -> m b
 defaultLocallyTCState lens f = bracket_ (useTC lens <* modifyTCLens lens f) (setTCLens lens)
 
 -- Taken from TCMT implementation
-defaultPragmaOptionsImpl :: (MonadAgdaLib m) => m PragmaOptions
+defaultPragmaOptionsImpl :: (MonadAgdaProject m) => m PragmaOptions
 defaultPragmaOptionsImpl = useTC stPragmaOptions
 
 -- Taken from TCMT implementation
-defaultCommandLineOptionsImpl :: (MonadAgdaLib m) => m CommandLineOptions
+defaultCommandLineOptionsImpl :: (MonadAgdaProject m) => m CommandLineOptions
 defaultCommandLineOptionsImpl = do
   p <- useTC stPragmaOptions
   cl <- stPersistentOptions . stPersistentState <$> getTC
   return $ cl {optPragmaOptions = p}
 
-defaultLiftTCM :: (MonadAgdaLib m) => TCM a -> m a
+defaultLiftTCM :: (MonadAgdaProject m) => TCM a -> m a
 defaultLiftTCM (TCM f) = do
-  tcStateRef <- useAgdaLib agdaLibTcStateRef
-  tcEnv <- useAgdaLib agdaLibTcEnv
+  tcStateRef <- useAgdaProject AgdaProject.tcStateRef
+  tcEnv <- useAgdaProject AgdaProject.tcEnv
   liftIO $ f tcStateRef tcEnv
 
 -- Taken from TCM implementation
-defaultTraceClosureCall :: (MonadAgdaLib m, MonadTrace m) => TCM.Closure TCM.Call -> m a -> m a
+defaultTraceClosureCall :: (MonadAgdaProject m, MonadTrace m) => TCM.Closure TCM.Call -> m a -> m a
 defaultTraceClosureCall cl m = do
   -- Compute update to 'Range' and 'Call' components of 'TCEnv'.
   let withCall =
@@ -214,60 +223,55 @@ defaultTraceClosureCall cl m = do
 
 #if MIN_VERSION_Agda(2,8,0)
 -- Taken from TCMT implementation
-defaultFileFromId :: (MonadAgdaLib m) => TCM.FileId -> m File
+defaultFileFromId :: (MonadAgdaProject m) => TCM.FileId -> m File
 defaultFileFromId fi = useTC TCM.stFileDict <&> (`getIdFile` fi)
 
 -- Taken from TCMT implementation
-defaultIdFromFile :: (MonadAgdaLib m) => File -> m TCM.FileId
+defaultIdFromFile :: (MonadAgdaProject m) => File -> m TCM.FileId
 defaultIdFromFile = TCM.stateTCLens TCM.stFileDict . TCM.registerFileIdWithBuiltin
 #endif
 
 --------------------------------------------------------------------------------
 
-newtype WithAgdaLibT m a = WithAgdaLibT {unWithAgdaLibT :: ReaderT AgdaLib m a}
+newtype WithAgdaProjectT m a = WithAgdaProjectT {unWithAgdaProjectT :: ReaderT AgdaProject m a}
   deriving (Functor, Applicative, Monad, MonadIO, MonadTrans)
 
-runWithAgdaLibT :: AgdaLib -> WithAgdaLibT m a -> m a
-runWithAgdaLibT agdaLib = flip runReaderT agdaLib . unWithAgdaLibT
+runWithAgdaProjectT :: AgdaProject -> WithAgdaProjectT m a -> m a
+runWithAgdaProjectT agdaProject = flip runReaderT agdaProject . unWithAgdaProjectT
 
-type WithAgdaLibM = WithAgdaLibT ServerM
+type WithAgdaProjectM = WithAgdaProjectT ServerM
 
-runWithAgdaLib :: LSP.Uri -> WithAgdaLibM a -> ServerM a
-runWithAgdaLib uri x = do
-  agdaLib <- findAgdaLib uri
-  runWithAgdaLibT agdaLib x
+instance (MonadIO m) => MonadAgdaProject (WithAgdaProjectT m) where
+  askAgdaProject = WithAgdaProjectT ask
+  localAgdaProject f = WithAgdaProjectT . local f . unWithAgdaProjectT
 
-instance (MonadIO m) => MonadAgdaLib (WithAgdaLibT m) where
-  askAgdaLib = WithAgdaLibT ask
-  localAgdaLib f = WithAgdaLibT . local f . unWithAgdaLibT
-
-instance (MonadIO m) => MonadTCEnv (WithAgdaLibT m) where
+instance (MonadIO m) => MonadTCEnv (WithAgdaProjectT m) where
   askTC = defaultAskTC
   localTC = defaultLocalTC
 
-instance (MonadIO m) => MonadTCState (WithAgdaLibT m) where
+instance (MonadIO m) => MonadTCState (WithAgdaProjectT m) where
   getTC = defaultGetTC
   putTC = defaultPutTC
   modifyTC = defaultModifyTC
 
-instance (MonadIO m) => ReadTCState (WithAgdaLibT m) where
+instance (MonadIO m) => ReadTCState (WithAgdaProjectT m) where
   getTCState = defaultGetTC
   locallyTCState = defaultLocallyTCState
 
-instance (MonadIO m) => HasOptions (WithAgdaLibT m) where
+instance (MonadIO m) => HasOptions (WithAgdaProjectT m) where
   pragmaOptions = defaultPragmaOptionsImpl
   commandLineOptions = defaultCommandLineOptionsImpl
 
 -- TODO: how should this really be implemented?
-instance (MonadIO m) => MonadTrace (WithAgdaLibT m) where
+instance (MonadIO m) => MonadTrace (WithAgdaProjectT m) where
   traceClosureCall = defaultTraceClosureCall
   printHighlightingInfo _ _ = return ()
 
-instance (MonadIO m) => MonadTCM (WithAgdaLibT m) where
+instance (MonadIO m) => MonadTCM (WithAgdaProjectT m) where
   liftTCM = defaultLiftTCM
 
 #if MIN_VERSION_Agda(2,8,0)
-instance (MonadIO m) => TCM.MonadFileId (WithAgdaLibT m) where
+instance (MonadIO m) => TCM.MonadFileId (WithAgdaProjectT m) where
   fileFromId = defaultFileFromId
   idFromFile = defaultIdFromFile
 #endif
@@ -275,12 +279,12 @@ instance (MonadIO m) => TCM.MonadFileId (WithAgdaLibT m) where
 --------------------------------------------------------------------------------
 
 data WithAgdaFileEnv = WithAgdaFileEnv
-  { _withAgdaFileEnvAgdaLib :: !AgdaLib,
+  { _withAgdaFileEnvAgdaProject :: !AgdaProject,
     _withAgdaFileEnvAgdaFile :: !AgdaFile
   }
 
-withAgdaFileEnvAgdaLib :: Lens' WithAgdaFileEnv AgdaLib
-withAgdaFileEnvAgdaLib f a = f (_withAgdaFileEnvAgdaLib a) <&> \x -> a {_withAgdaFileEnvAgdaLib = x}
+withAgdaFileEnvAgdaProject :: Lens' WithAgdaFileEnv AgdaProject
+withAgdaFileEnvAgdaProject f a = f (_withAgdaFileEnvAgdaProject a) <&> \x -> a {_withAgdaFileEnvAgdaProject = x}
 
 withAgdaFileEnvAgdaFile :: Lens' WithAgdaFileEnv AgdaFile
 withAgdaFileEnvAgdaFile f a = f (_withAgdaFileEnvAgdaFile a) <&> \x -> a {_withAgdaFileEnvAgdaFile = x}
@@ -289,16 +293,16 @@ newtype WithAgdaFileT m a = WithAgdaFileT
   {unWithAgdaFileT :: ReaderT WithAgdaFileEnv m a}
   deriving (Functor, Applicative, Monad, MonadIO, MonadTrans)
 
-runWithAgdaFileT :: AgdaLib -> AgdaFile -> WithAgdaFileT m a -> m a
-runWithAgdaFileT agdaLib agdaFile =
-  let env = WithAgdaFileEnv agdaLib agdaFile
+runWithAgdaFileT :: AgdaProject -> AgdaFile -> WithAgdaFileT m a -> m a
+runWithAgdaFileT agdaProject agdaFile =
+  let env = WithAgdaFileEnv agdaProject agdaFile
    in flip runReaderT env . unWithAgdaFileT
 
 type WithAgdaFileM = WithAgdaFileT ServerM
 
-instance (MonadIO m) => MonadAgdaLib (WithAgdaFileT m) where
-  askAgdaLib = WithAgdaFileT $ view withAgdaFileEnvAgdaLib
-  localAgdaLib f = WithAgdaFileT . locally withAgdaFileEnvAgdaLib f . unWithAgdaFileT
+instance (MonadIO m) => MonadAgdaProject (WithAgdaFileT m) where
+  askAgdaProject = WithAgdaFileT $ view withAgdaFileEnvAgdaProject
+  localAgdaProject f = WithAgdaFileT . locally withAgdaFileEnvAgdaProject f . unWithAgdaFileT
 
 instance (MonadIO m) => MonadAgdaFile (WithAgdaFileT m) where
   askAgdaFile = WithAgdaFileT $ view withAgdaFileEnvAgdaFile

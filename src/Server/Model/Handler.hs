@@ -27,8 +27,9 @@ import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Server as LSP
 import Monad (ServerM, askModel, catchTCError)
 import Server.AgdaLibResolver (findAgdaLib)
+import Server.AgdaProjectResolver (findAgdaProject)
 import qualified Server.Model as Model
-import Server.Model.Monad (WithAgdaFileM, WithAgdaLibM, runWithAgdaFileT, runWithAgdaLibT)
+import Server.Model.Monad (WithAgdaFileM, WithAgdaProjectM, runWithAgdaFileT, runWithAgdaProjectT)
 import qualified Server.Model.Monad as LSP
 #if MIN_VERSION_Agda(2,7,0)
 #else
@@ -42,7 +43,7 @@ tryTC handler = (Right <$> handler) `catchTCError` (return . Left)
 
 type NotificationHandlerWithAgdaLib
   (m :: LSP.Method LSP.ClientToServer LSP.Notification) =
-  LSP.NormalizedUri -> LSP.TNotificationMessage m -> WithAgdaLibM ()
+  LSP.NormalizedUri -> LSP.TNotificationMessage m -> WithAgdaProjectM ()
 
 notificationHandlerWithAgdaLib ::
   (LSP.HasTextDocument (LSP.MessageParams m) textdoc, LSP.HasUri textdoc LSP.Uri) =>
@@ -60,13 +61,13 @@ takeOverNotificationHandlerWithAgdaLib ::
 takeOverNotificationHandlerWithAgdaLib notification handlerWithAgdaLib = do
   let uri = notification ^. LSP.params . LSP.textDocument . LSP.uri
       normUri = LSP.toNormalizedUri uri
-  agdaLib <- findAgdaLib normUri
-  lift $ LSP.sendNotification LSP.SMethod_WindowLogMessage $ LSP.LogMessageParams LSP.MessageType_Info $ Text.pack $ prettyShow agdaLib
+  agdaProject <- findAgdaProject uri
+  lift $ LSP.sendNotification LSP.SMethod_WindowLogMessage $ LSP.LogMessageParams LSP.MessageType_Info $ Text.pack $ prettyShow agdaProject
 
-  let notificationHandler = runWithAgdaLibT agdaLib . handlerWithAgdaLib normUri
+  let notificationHandler = runWithAgdaProjectT agdaProject . handlerWithAgdaLib normUri
   let handler = tryTC $ notificationHandler notification
 
-  let onErr = \err -> runWithAgdaLibT agdaLib $ do
+  let onErr = \err -> runWithAgdaProjectT agdaProject $ do
         message <- Text.pack . prettyShow <$> TCM.liftTCM (TCM.prettyTCM err)
         lift $ LSP.sendNotification LSP.SMethod_WindowShowMessage $ LSP.ShowMessageParams LSP.MessageType_Error message
         lift $ LSP.sendNotification LSP.SMethod_WindowLogMessage $ LSP.LogMessageParams LSP.MessageType_Error message
@@ -100,11 +101,11 @@ requestHandlerWithAgdaFile m handlerWithAgdaFile = LSP.requestHandler m $ \req r
       let message = "Request for unknown Agda file at URI: " <> LSP.getUri uri
       responder $ Left $ LSP.TResponseError (LSP.InR LSP.ErrorCodes_InvalidParams) message Nothing
     Just agdaFile -> do
-      agdaLib <- findAgdaLib normUri
+      agdaProject <- findAgdaProject uri
       let responderWithAgdaFile = lift . responder
-      let handler = tryTC $ runWithAgdaFileT agdaLib agdaFile $ handlerWithAgdaFile req responderWithAgdaFile
+      let handler = tryTC $ runWithAgdaFileT agdaProject agdaFile $ handlerWithAgdaFile req responderWithAgdaFile
 
-      let onErr = \err -> runWithAgdaFileT agdaLib agdaFile $ do
+      let onErr = \err -> runWithAgdaFileT agdaProject agdaFile $ do
             message <- Text.pack . prettyShow <$> TCM.liftTCM (TCM.prettyTCM err)
             lift $ responder $ Left $ LSP.TResponseError (LSP.InL LSP.LSPErrorCodes_RequestFailed) message Nothing
 

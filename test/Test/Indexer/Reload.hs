@@ -8,7 +8,8 @@ import Indexer (indexFile)
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Server as LSP
 import Monad (runServerT)
-import Server.Model.Monad (runWithAgdaLib)
+import Server.AgdaProjectResolver (findAgdaProject)
+import Server.Model.Monad (runWithAgdaProjectT)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit (assertFailure, testCase, (@?=))
 import qualified TestData
@@ -28,7 +29,8 @@ testReloadFile path = do
   LSP.runLspT undefined $ do
     env <- TestData.getServerEnv model
     runServerT env $ do
-      runWithAgdaLib uri $ do
+      project <- findAgdaProject uri
+      runWithAgdaProjectT project $ do
         src <- TestData.parseSourceFromPath path
         _ <- indexFile src
         _ <- indexFile src
@@ -61,7 +63,8 @@ testReloadChanges = do
   LSP.runLspT undefined $ do
     env <- TestData.getServerEnv model
     runServerT env $ do
-      runWithAgdaLib uri $ do
+      project <- findAgdaProject uri
+      runWithAgdaProjectT project $ do
         src0 <- TestData.parseSourceFromPathAndContents path contentsA
         agdaFile0 <- indexFile src0
 

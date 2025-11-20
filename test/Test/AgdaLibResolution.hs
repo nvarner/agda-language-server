@@ -15,11 +15,12 @@ import Monad (runServerT)
 import Server.AgdaLibResolver (findAgdaLib)
 import qualified Server.Filesystem as FS
 import Server.Model.AgdaLib (AgdaLibOrigin (FromFile), agdaLibIncludes, agdaLibName, agdaLibOrigin)
-import Server.Model.Monad (MonadAgdaLib, askAgdaLib, runWithAgdaLib, runWithAgdaLibT)
+import Server.Model.Monad (MonadAgdaProject, askAgdaLib, runWithAgdaProjectT)
 import System.Directory (makeAbsolute)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit (testCase, (@?=))
 import qualified TestData
+import Server.AgdaProjectResolver (findAgdaProject)
 
 natPath, constPath, agdaLibPath, srcPath :: FilePath
 natPath = "test/data/libs/no-deps/src/Data/Nat.agda"
@@ -56,7 +57,8 @@ tests =
         LSP.runLspT undefined $ do
           env <- TestData.getServerEnv model
           runServerT env $ do
-            runWithAgdaLib (LSP.filePathToUri natPath) $ do
+            natProject <- findAgdaProject natPath
+            runWithAgdaProjectT natProject $ do
               natSrc <- TestData.parseSourceFromPath natPath
               _ <- indexFile natSrc
               return (),
@@ -66,7 +68,8 @@ tests =
         LSP.runLspT undefined $ do
           env <- TestData.getServerEnv model
           runServerT env $ do
-            runWithAgdaLib (LSP.filePathToUri constPath) $ do
+            constProject <- findAgdaProject constPath
+            runWithAgdaProjectT constProject $ do
               constSrc <- TestData.parseSourceFromPath constPath
               _ <- indexFile constSrc
               return ()
