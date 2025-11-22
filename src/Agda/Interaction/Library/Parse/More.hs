@@ -17,11 +17,8 @@ import Agda.Interaction.Library.Base
 import Agda.Syntax.Position
 import Agda.Utils.Applicative
 import Agda.Utils.FileName
-import Agda.Utils.IO (catchIO)
-import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Lens
 import Agda.Utils.List (duplicates)
-import Agda.Utils.List1 (List1, toList)
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Singleton
@@ -31,12 +28,9 @@ import Control.Monad.Except
 import Control.Monad.Writer
 import Data.Char
 import qualified Data.List as List
-import Data.Text (Text)
-import qualified Data.Text as T
 import qualified Data.Text as Text
 import Monad (ServerM)
 import qualified Server.Filesystem as FS
-import System.FilePath
 
 -- | Parser monad: Can throw @LibParseError@s, and collects
 -- @LibWarning'@s library warnings.
@@ -278,10 +272,6 @@ groupLines (Header _ h : ls) = (GenericEntry h [c | Content _ c <- cs] :) <$> gr
     (cs, ls1) = span isContent ls
     isContent Content {} = True
     isContent Header {} = False
-
--- | Remove leading whitespace and line comment.
-trimLineComment :: String -> String
-trimLineComment = stripComments . ltrim
 
 -- | Break a comma-separated string.  Result strings are @trim@med.
 splitCommas :: String -> [String]

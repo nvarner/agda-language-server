@@ -6,27 +6,21 @@
 module Server (run) where
 
 import qualified Agda
-import Control.Concurrent (writeChan)
 import Control.Monad (void)
 import Control.Monad.Reader (MonadIO (liftIO))
-import Data.Aeson
-  ( FromJSON,
-    ToJSON,
-  )
 import qualified Data.Aeson as JSON
 import Data.Text (pack)
 import GHC.IO.IOMode (IOMode (ReadWriteMode))
 import Language.LSP.Protocol.Message
 import Language.LSP.Protocol.Types (HoverParams (..), SaveOptions (..), TextDocumentIdentifier (..), TextDocumentSyncKind (..), TextDocumentSyncOptions (..), type (|?) (..))
 import Language.LSP.Server hiding (Options)
-import qualified Language.LSP.Server hiding (Options)
 import qualified Language.LSP.Server as LSP
 import Monad
 import qualified Network.Simple.TCP as TCP
 import Network.Socket (socketToHandle)
 import Options
 import qualified Server.Handler as Handler
-import Switchboard (Switchboard, agdaCustomMethod)
+import Switchboard (agdaCustomMethod)
 import qualified Switchboard
 import Server.Handler.TextDocument.DocumentSymbol (documentSymbolHandler)
 import Server.Handler.TextDocument.FileManagement (didOpenHandler, didCloseHandler, didSaveHandler)
@@ -85,16 +79,6 @@ run options = do
 lspOptions :: LSP.Options
 lspOptions = LSP.defaultOptions {optTextDocumentSync = Just syncOptions}
 
--- these `TextDocumentSyncOptions` are essential for receiving notifications from the client
--- syncOptions :: TextDocumentSyncOptions
--- syncOptions =
---   TextDocumentSyncOptions
---     { _openClose = Just True, -- receive open and close notifications from the client
---       _change = Just changeOptions, -- receive change notifications from the client
---       _willSave = Just False, -- receive willSave notifications from the client
---       _willSaveWaitUntil = Just False, -- receive willSave notifications from the client
---       _save = Just $ InR saveOptions
---     }
 syncOptions :: TextDocumentSyncOptions
 syncOptions =
   TextDocumentSyncOptions

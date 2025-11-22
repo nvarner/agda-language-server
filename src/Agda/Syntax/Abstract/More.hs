@@ -5,10 +5,8 @@ module Agda.Syntax.Abstract.More () where
 
 import Agda.Syntax.Abstract
 import Agda.Syntax.Common
-import Agda.Syntax.Common (ArgInfo (argInfoOrigin))
 import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Info
-import Agda.Utils.Functor ((<&>))
 import Data.Foldable (Foldable (toList))
 import qualified Data.Map as Map
 

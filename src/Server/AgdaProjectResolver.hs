@@ -1,6 +1,6 @@
 module Server.AgdaProjectResolver (findAgdaProject) where
 
-import Monad (ServerM, askFilesystemProvider, askModel, modifyModel)
+import Monad (ServerM, askModel, modifyModel)
 import Server.AgdaLibResolver (findAgdaLib)
 import qualified Server.Filesystem as FS
 import qualified Server.Model as Model

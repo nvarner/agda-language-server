@@ -12,14 +12,13 @@ module Server.Model
 where
 
 import Agda.Utils.Lens (Lens', over, (^.))
-import Control.Monad.IO.Class (MonadIO)
 import Data.Foldable (find)
 import Data.Functor ((<&>))
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Language.LSP.Protocol.Types as LSP
 import Server.Model.AgdaFile (AgdaFile)
-import Server.Model.AgdaLib (AgdaLib, initAgdaLib, isAgdaLibForUri)
+import Server.Model.AgdaLib (AgdaLib, isAgdaLibForUri)
 import Server.Model.AgdaProject (AgdaProject)
 import qualified Server.Model.AgdaProject as AgdaProject
 

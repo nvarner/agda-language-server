@@ -24,7 +24,7 @@ import           Agda.Interaction.Base          ( Command
                                                 , CommandM
 #endif
                                                 , CommandState(optionsOnReload)
-                                                , IOTCM
+                                                
                                                 , initCommandState
                                                 , parseIOTCM
                                                 )
@@ -61,7 +61,6 @@ import           Agda.TypeChecking.Monad.Base   ( TCM )
 import qualified Agda.TypeChecking.Monad.Benchmark
                                                as Bench
 import           Agda.TypeChecking.Monad.State  ( setInteractionOutputCallback )
-import           Agda.Utils.FileName            ( absolute )
 import           Agda.Utils.Impossible          ( CatchImpossible
                                                   ( catchImpossible
                                                   )
@@ -82,10 +81,8 @@ import           Data.Aeson                     ( FromJSON
                                                 , fromJSON
                                                 )
 import qualified Data.Aeson                    as JSON
-import           Data.Maybe                     ( listToMaybe )
 import           Data.Text                      ( pack )
 import           GHC.Generics                   ( Generic )
-import           Language.LSP.Server            ( getConfig )
 import           Monad
 import           Options                        ( Config(configRawAgdaOptions)
                                                 , Options(optRawAgdaOptions, optRawResponses)
@@ -93,7 +90,7 @@ import           Options                        ( Config(configRawAgdaOptions)
                                                 )
 
 import qualified Agda.IR                       as IR
-import           Agda.Interaction.JSON          ( encode, encodeTCM )
+import           Agda.Interaction.JSON          ( encodeTCM )
 import           Agda.Interaction.JSONTop       ()
 
 getAgdaVersion :: String

@@ -106,7 +106,7 @@ library
       OverloadedStrings
       PatternSynonyms
       TypeOperators
-  ghc-options: -Wincomplete-patterns -Wunused-do-bind -Wunused-foralls -Wwarnings-deprecations -Wwrong-do-bind -Wmissing-fields -Wmissing-methods -Wmissing-pattern-synonym-signatures -Wmissing-signatures -Werror=incomplete-patterns -fno-warn-orphans
+  ghc-options: -Wincomplete-patterns -Werror=incomplete-patterns -Wunused-local-binds -Wunused-pattern-binds -Wunused-do-bind -Wunused-foralls -Wunused-imports -Wwarnings-deprecations -Wwrong-do-bind -Wmissing-fields -Wmissing-methods -Wmissing-pattern-synonym-signatures -Wmissing-signatures -Wsimplifiable-class-constraints -fno-warn-orphans -Werror
   build-depends:
       Agda
     , aeson
@@ -153,7 +153,7 @@ executable als
       OverloadedStrings
       PatternSynonyms
       TypeOperators
-  ghc-options: -Wincomplete-patterns -Wunused-do-bind -Wunused-foralls -Wwarnings-deprecations -Wwrong-do-bind -Wmissing-fields -Wmissing-methods -Wmissing-pattern-synonym-signatures -Wmissing-signatures -rtsopts -Werror=incomplete-patterns -fno-warn-orphans
+  ghc-options: -Wincomplete-patterns -Werror=incomplete-patterns -Wunused-local-binds -Wunused-pattern-binds -Wunused-do-bind -Wunused-foralls -Wunused-imports -Wwarnings-deprecations -Wwrong-do-bind -Wmissing-fields -Wmissing-methods -Wmissing-pattern-synonym-signatures -Wmissing-signatures -Wsimplifiable-class-constraints -fno-warn-orphans -Werror -rtsopts
   build-depends:
       Agda
     , aeson
@@ -268,7 +268,7 @@ test-suite als-test
       OverloadedStrings
       PatternSynonyms
       TypeOperators
-  ghc-options: -Wincomplete-patterns -Wunused-do-bind -Wunused-foralls -Wwarnings-deprecations -Wwrong-do-bind -Wmissing-fields -Wmissing-methods -Wmissing-pattern-synonym-signatures -Wmissing-signatures -rtsopts -Werror=incomplete-patterns -fno-warn-orphans
+  ghc-options: -Wincomplete-patterns -Werror=incomplete-patterns -Wunused-local-binds -Wunused-pattern-binds -Wunused-do-bind -Wunused-foralls -Wunused-imports -Wwarnings-deprecations -Wwrong-do-bind -Wmissing-fields -Wmissing-methods -Wmissing-pattern-synonym-signatures -Wmissing-signatures -Wsimplifiable-class-constraints -fno-warn-orphans -Werror -rtsopts
   build-depends:
       Agda
     , aeson

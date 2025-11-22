@@ -25,28 +25,17 @@ module Server.Model.Monad
 where
 
 import Agda.Interaction.Options (CommandLineOptions (optPragmaOptions), PragmaOptions)
-import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Position (getRange)
-import Agda.TypeChecking.Monad (HasOptions (..), MonadTCEnv (..), MonadTCM (..), MonadTCState (..), MonadTrace, PersistentTCState (stPersistentOptions), ReadTCState (..), TCEnv (..), TCM, TCMT (..), TCState (stPersistentState), catchError_, modifyTCLens, setTCLens, stPragmaOptions, useTC, viewTC)
+import Agda.TypeChecking.Monad (HasOptions (..), MonadTCEnv (..), MonadTCM (..), MonadTCState (..), MonadTrace, PersistentTCState (stPersistentOptions), ReadTCState (..), TCEnv (..), TCM, TCMT (..), TCState (stPersistentState), modifyTCLens, setTCLens, stPragmaOptions, useTC)
 import qualified Agda.TypeChecking.Monad as TCM
-import qualified Agda.TypeChecking.Pretty as TCM
 import Agda.Utils.IORef (modifyIORef', readIORef, writeIORef)
-import Agda.Utils.Lens (Lens', locally, over, use, view, (<&>), (^.))
-import Agda.Utils.Monad (and2M, bracket_, ifNotM, unless)
+import Agda.Utils.Lens (Lens', locally, over, view, (<&>), (^.))
+import Agda.Utils.Monad (and2M, bracket_, ifNotM)
 import Agda.Utils.Null (null)
 import Control.Monad.IO.Class (MonadIO (liftIO))
-import Control.Monad.Reader (MonadReader (local), ReaderT (runReaderT), ask, asks)
-import Control.Monad.Trans (MonadTrans, lift)
-import qualified Data.Text as Text
-import qualified Language.LSP.Protocol.Lens as LSP
-import qualified Language.LSP.Protocol.Message as LSP
-import qualified Language.LSP.Protocol.Types as LSP
-import qualified Language.LSP.Protocol.Types.Uri.More as LSP
-import Language.LSP.Server (LspM)
-import qualified Language.LSP.Server as LSP
-import Monad (ServerM, ServerT, askModel, catchTCError)
-import Options (Config)
-import qualified Server.Model as Model
+import Control.Monad.Reader (MonadReader (local), ReaderT (runReaderT), ask)
+import Control.Monad.Trans (MonadTrans)
+import Monad (ServerM)
 import Server.Model.AgdaFile (AgdaFile)
 import Server.Model.AgdaLib (AgdaLib)
 import Server.Model.AgdaProject (AgdaProject)
@@ -54,11 +43,6 @@ import qualified Server.Model.AgdaProject as AgdaProject
 import Prelude hiding (null)
 #if MIN_VERSION_Agda(2,8,0)
 import Agda.Utils.FileId (File, getIdFile)
-#endif
-#if MIN_VERSION_Agda(2,7,0)
-import Agda.Interaction.Response (Response_boot(Resp_HighlightingInfo))
-#else
-import Agda.Interaction.Response (Response(Resp_HighlightingInfo))
 #endif
 
 --------------------------------------------------------------------------------
@@ -205,21 +189,6 @@ defaultTraceClosureCall cl m = do
     isNoHighlighting = case call of
       TCM.NoHighlighting {} -> True
       _ -> False
-
-    printHighlightingInfo remove info = do
-      modToSrc <- useTC TCM.stModuleToSource
-      method <- viewTC TCM.eHighlightingMethod
-      -- reportSDoc "highlighting" 50 $
-      --   pure $
-      --     vcat
-      --       [ "Printing highlighting info:",
-      --         nest 2 $ (text . show) info,
-      --         "File modules:",
-      --         nest 2 $ pretty modToSrc
-      --       ]
-      unless (null info) $ do
-        TCM.appInteractionOutputCallback $
-          Resp_HighlightingInfo info remove method modToSrc
 
 #if MIN_VERSION_Agda(2,8,0)
 -- Taken from TCMT implementation

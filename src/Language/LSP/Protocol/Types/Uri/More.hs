@@ -14,10 +14,8 @@ import Agda.Utils.Lens (set, (^.))
 import Agda.Utils.List (initMaybe, lastMaybe)
 import Agda.Utils.Maybe (fromMaybe)
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Data.Function ((&))
 import Data.Text (Text)
 import qualified Data.Text as Text
-import Language.LSP.Protocol.Types (uriToFilePath)
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Text.URI as ParsedUri
 import qualified Text.URI.Lens as ParsedUriLens

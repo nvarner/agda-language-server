@@ -10,7 +10,16 @@ module Agda.Interaction.Library.More
 where
 
 import Agda.Interaction.Library (LibM, AgdaLibFile)
-import Agda.Interaction.Library.Base (LibErrorIO, libName, libFile, libIncludes)
+import Agda.Interaction.Library.Base
+  (
+    libName,
+    libFile,
+    libIncludes,
+#if MIN_VERSION_Agda(2,8,0)
+#else
+    LibErrorIO,
+#endif
+  )
 import Agda.Utils.Either (maybeRight)
 import Agda.Utils.Null (Null (empty))
 import Control.Category ((>>>))

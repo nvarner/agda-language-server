@@ -12,25 +12,21 @@ module Server.Model.Handler
   )
 where
 
-import Agda.Syntax.Common (WithHiding (whHiding))
 import Agda.Syntax.Common.Pretty (prettyShow)
 import qualified Agda.TypeChecking.Monad as TCM
 import qualified Agda.TypeChecking.Pretty as TCM
 import Agda.Utils.Either (fromRightM)
 import Agda.Utils.Lens ((^.))
-import Control.Monad.Trans (MonadTrans, lift)
+import Control.Monad.Trans (lift)
 import qualified Data.Text as Text
 import qualified Language.LSP.Protocol.Lens as LSP
 import qualified Language.LSP.Protocol.Message as LSP
-import qualified Language.LSP.Protocol.Message as Lsp
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Server as LSP
 import Monad (ServerM, askModel, catchTCError)
-import Server.AgdaLibResolver (findAgdaLib)
 import Server.AgdaProjectResolver (findAgdaProject)
 import qualified Server.Model as Model
 import Server.Model.Monad (WithAgdaFileM, WithAgdaProjectM, runWithAgdaFileT, runWithAgdaProjectT)
-import qualified Server.Model.Monad as LSP
 #if MIN_VERSION_Agda(2,7,0)
 #else
 import Agda.TypeChecking.Errors ()

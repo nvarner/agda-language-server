@@ -9,7 +9,7 @@ import Agda.Position (FromOffset, fromOffset, makeFromOffset)
 import Agda.Syntax.Common.Pretty (Pretty, align, pretty, prettyList, prettyShow, pshow, text, vcat, (<+>))
 import qualified Agda.TypeChecking.Monad as TCM
 import Agda.Utils.Lens ((^.))
-import Agda.Utils.Maybe (isJust, isNothing)
+import Agda.Utils.Maybe (isNothing)
 import Agda.Utils.RangeMap (PairInt (PairInt), RangeMap (rangeMap))
 import Control.Monad (forM_, guard)
 import Control.Monad.Writer.CPS (Writer, execWriter, tell)

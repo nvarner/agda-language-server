@@ -17,49 +17,50 @@ module TestData
 where
 
 import Agda.Interaction.FindFile
-  ( SourceFile (SourceFile),
+  (
 #if MIN_VERSION_Agda(2,8,0)
+    SourceFile,
 #else
-    srcFilePath,
+    SourceFile (SourceFile),
 #endif
   )
 import qualified Agda.Interaction.Imports as Imp
+import Agda.Interaction.Imports.Virtual (parseSourceFromContents)
 import qualified Agda.Interaction.Options
 import Agda.Syntax.Abstract.More ()
 import Agda.Syntax.Common.Pretty (prettyShow)
-import Agda.Syntax.Translation.ConcreteToAbstract (topLevelDecls)
 import qualified Agda.TypeChecking.Monad as TCM
+import Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.Utils.FileName (absolute)
 import Agda.Utils.IORef (newIORef)
-import Agda.Utils.Lens (set, (<&>))
+import Agda.Utils.Lens (set)
 import Control.Concurrent (newChan)
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Data.Function ((&))
 import qualified Data.Map as Map
-import Indexer (indexFile, withAstFor, usingSrcAsCurrent)
+import Data.Text (Text)
+import Indexer (indexFile, usingSrcAsCurrent)
 import qualified Language.LSP.Protocol.Message as LSP
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Server as LSP
-import Monad (Env (Env), runServerT, catchTCError)
+import Monad (Env (Env), catchTCError, runServerT)
 import Options (defaultOptions, initConfig)
+import Server.AgdaProjectResolver (findAgdaProject)
 import qualified Server.CommandController as CommandController
+import qualified Server.Filesystem as FS
 import Server.Model (Model (Model))
 import Server.Model.AgdaFile (AgdaFile, emptyAgdaFile)
 import Server.Model.AgdaLib (agdaLibIncludes, initAgdaLib)
+import qualified Server.Model.AgdaProject as AgdaProject
 import Server.Model.Monad (MonadAgdaProject, runWithAgdaProjectT)
 import qualified Server.ResponseController as ResponseController
-import System.FilePath (takeBaseName, (</>))
-import Agda.TypeChecking.Pretty (prettyTCM)
-import Data.Text (Text)
-import Agda.Interaction.Imports.Virtual (parseSourceFromContents)
-import qualified Server.Filesystem as FS
 import qualified Server.VfsIndex as VfsIndex
-import Server.AgdaProjectResolver (findAgdaProject)
-import qualified Server.Model.AgdaProject as AgdaProject
+import System.FilePath (takeBaseName)
 
 data AgdaFileDetails = AgdaFileDetails
-  { fileName :: String,
-    agdaFile :: AgdaFile,
-    interface :: TCM.Interface
+  { fileName :: !String,
+    agdaFile :: !AgdaFile,
+    interface :: !TCM.Interface
   }
 
 agdaFileDetails :: FilePath -> IO AgdaFileDetails
@@ -82,9 +83,12 @@ agdaFileDetails inPath = do
             t <- TCM.liftTCM $ prettyTCM err
             error $ prettyShow t
 
-      interface <- (withSrc $ \src -> usingSrcAsCurrent src $ do
-        checkResult <- TCM.liftTCM $ Imp.typeCheckMain Imp.TypeCheck src
-        return $ Imp.crInterface checkResult) `catchTCError` onErr
+      interface <-
+        ( withSrc $ \src -> usingSrcAsCurrent src $ do
+            checkResult <- TCM.liftTCM $ Imp.typeCheckMain Imp.TypeCheck src
+            return $ Imp.crInterface checkResult
+        )
+          `catchTCError` onErr
 
       file <- withSrc indexFile `catchTCError` onErr
 
@@ -110,7 +114,7 @@ parseSourceFromPathAndContents ::
   (TCM.MonadTCM m, TCM.MonadTrace m, MonadAgdaProject m) =>
   FilePath ->
   Text ->
-    m Imp.Source
+  m Imp.Source
 parseSourceFromPathAndContents path contents = do
   srcFile <- sourceFileFromPath path
   let uri = LSP.toNormalizedUri $ LSP.filePathToUri path
@@ -153,17 +157,13 @@ getModel = do
                 "file:///home/user2/project2/",
                 "https://example.com/agda/"
               ]
-  testLib1 <-
-    initAgdaLib
-      <&> set agdaLibIncludes includes1
+  let testLib1 = initAgdaLib & set agdaLibIncludes includes1
   testProject1 <- AgdaProject.new testLib1
 
   let includes2 =
         FS.Uri . LSP.toNormalizedUri . LSP.Uri
           <$> ["file:///home/user/project2/"]
-  testLib2 <-
-    initAgdaLib
-      <&> set agdaLibIncludes includes2
+  let testLib2 = initAgdaLib & set agdaLibIncludes includes2
   testProject2 <- AgdaProject.new testLib2
 
   let libs = [testLib1, testLib2]

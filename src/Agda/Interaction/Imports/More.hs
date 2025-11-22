@@ -4,6 +4,7 @@ module Agda.Interaction.Imports.More
   ( setOptionsFromSourcePragmas,
     checkModuleName',
     runPMDropWarnings,
+    srcFilePath,
     moduleName,
     runPM,
     beginningOfFile,
@@ -11,23 +12,21 @@ module Agda.Interaction.Imports.More
 where
 
 import Agda.Interaction.FindFile (
-    SourceFile (SourceFile),
     checkModuleName,
 #if MIN_VERSION_Agda(2,8,0)
+    SourceFile,
     rootNameModule,
 #else
+    SourceFile (SourceFile),
     moduleName,
 #endif
   )
-import Agda.Interaction.Imports (Source (..))
 import qualified Agda.Interaction.Imports as Imp
 import Agda.Interaction.Library (OptionsPragma (..), _libPragmas)
 import Agda.Interaction.Library.More ()
 import Agda.Syntax.Common (TopLevelModuleName')
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Parser (
-    moduleParser,
-    parseFile,
 #if MIN_VERSION_Agda(2,8,0)
     parse,
     moduleNameParser,
@@ -38,35 +37,28 @@ import Agda.Syntax.Parser (
   )
 import Agda.Syntax.Position
   ( Range,
-    Range' (Range),
-    RangeFile,
     getRange,
-    intervalToRange,
-    mkRangeFile,
-    posToRange,
-    posToRange',
-    startPos,
 #if MIN_VERSION_Agda(2,8,0)
     beginningOfFile,
     rangeFromAbsolutePath,
+#else
+    RangeFile,
+    posToRange,
+    startPos,
 #endif
   )
+#if MIN_VERSION_Agda(2,8,0)
 import Agda.Syntax.TopLevelModuleName (
     TopLevelModuleName,
     RawTopLevelModuleName (..),
-#if MIN_VERSION_Agda(2,8,0)
     rawTopLevelModuleNameForModule,
-#endif
   )
-import Agda.Syntax.Common.Pretty (Pretty, pretty, text, prettyAssign, (<+>))
+#endif
+import Agda.Syntax.Common.Pretty (Pretty, pretty, text, (<+>))
 import Agda.TypeChecking.Monad
-  ( Interface,
-    TCM,
+  ( TCM,
     setCurrentRange,
     setOptionsFromPragma,
-    setTCLens,
-    stPragmaOptions,
-    useTC,
 #if MIN_VERSION_Agda(2,7,0)
     checkAndSetOptionsFromPragma,
 #endif
@@ -76,17 +68,15 @@ import Agda.TypeChecking.Monad
 #endif
   )
 import qualified Agda.TypeChecking.Monad as TCM
-import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 #if MIN_VERSION_Agda(2,8,0)
+import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 #else
 import Agda.TypeChecking.Warnings (runPM)
 #endif
 import Agda.Utils.FileName (AbsolutePath)
-import Agda.Utils.Monad (bracket_)
 #if MIN_VERSION_Agda(2,8,0)
 import qualified Data.Text as T
 #endif
-import qualified Data.Text.Lazy as TL
 import Control.Monad.Error.Class (
 #if MIN_VERSION_Agda(2,8,0)
     catchError,
@@ -96,13 +86,6 @@ import Control.Monad.Error.Class (
   )
 #if MIN_VERSION_Agda(2,8,0)
 import Agda.Utils.Singleton (singleton)
-#endif
-
-srcFilePath :: SourceFile -> TCM AbsolutePath
-#if MIN_VERSION_Agda(2,8,0)
-srcFilePath = TCM.srcFilePath
-#else
-srcFilePath (SourceFile f) = return f
 #endif
 
 #if MIN_VERSION_Agda(2,8,0)
@@ -122,6 +105,14 @@ runPMDropWarnings m = do
   case res of
     Left  e -> throwError $ TCM.Exception (getRange e) (pretty e)
     Right a -> return a
+#endif
+
+#if MIN_VERSION_Agda(2,8,0)
+srcFilePath :: (TCM.MonadFileId m) => SourceFile -> m AbsolutePath
+srcFilePath = TCM.srcFilePath
+#else
+srcFilePath :: (Monad m) => SourceFile -> m AbsolutePath
+srcFilePath (SourceFile path) = return path
 #endif
 
 -- Unexported Agda functions

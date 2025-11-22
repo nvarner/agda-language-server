@@ -13,7 +13,7 @@ import qualified Agda.TypeChecking.Monad as TCM
 import Agda.Utils.IORef (IORef, newIORef)
 import Agda.Utils.Lens (Lens', (<&>), (^.))
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Server.Model.AgdaLib (AgdaLib, initAgdaLib)
+import Server.Model.AgdaLib (AgdaLib)
 import Agda.Syntax.Common.Pretty (Pretty, pretty, text, (<+>))
 
 data AgdaProject = AgdaProject

@@ -10,7 +10,7 @@ module Agda.Interaction.Imports.Virtual
 where
 
 #if MIN_VERSION_Agda(2,8,0)
-import Agda.TypeChecking.Monad (SourceFile (SourceFile))
+import Agda.TypeChecking.Monad (SourceFile)
 #else
 import Agda.Interaction.FindFile (SourceFile (SourceFile))
 #endif
@@ -19,15 +19,12 @@ import qualified Agda.Interaction.Imports.More as Imp
 import Agda.Syntax.Parser (moduleParser, parseFile)
 import Agda.Syntax.Position (mkRangeFile)
 import qualified Agda.TypeChecking.Monad as TCM
-import Agda.Utils.FileName (AbsolutePath)
 import Agda.Utils.Maybe (maybeToList)
 import Control.Monad.IO.Class (MonadIO)
-import Control.Monad.Trans (lift)
 import qualified Data.Strict as Strict
 import qualified Data.Text as Text
 import qualified Language.LSP.Protocol.Types as LSP
 import Language.LSP.Protocol.Types.Uri.More (uriToPossiblyInvalidAbsolutePath)
-import qualified Language.LSP.Server as LSP
 import qualified Language.LSP.VFS as VFS
 import Server.Model.AgdaLib (agdaLibToFile)
 import Server.Model.Monad (MonadAgdaProject, askAgdaLib)
@@ -37,21 +34,6 @@ data VSourceFile = VSourceFile
     vSrcUri :: LSP.NormalizedUri,
     vSrcVFile :: VFS.VirtualFile
   }
-
-#if MIN_VERSION_Agda(2,8,0)
-srcFilePath :: (TCM.MonadFileId m) => SourceFile -> m AbsolutePath
-srcFilePath = TCM.srcFilePath
-#else
-srcFilePath :: (Monad m) => SourceFile -> m AbsolutePath
-srcFilePath (SourceFile path) = return path
-#endif
-
-#if MIN_VERSION_Agda(2,8,0)
-vSrcFilePath :: (TCM.MonadFileId m) => VSourceFile -> m AbsolutePath
-#else
-vSrcFilePath :: (Monad m) => VSourceFile -> m AbsolutePath
-#endif
-vSrcFilePath = srcFilePath . vSrcFileSrcFile
 
 #if MIN_VERSION_Agda(2,8,0)
 vSrcFromUri ::
@@ -82,7 +64,7 @@ parseSourceFromContents ::
   Text.Text ->
   m Imp.Source
 parseSourceFromContents srcUri srcFile contentsStrict = do
-  f <- TCM.liftTCM $ srcFilePath srcFile
+  f <- TCM.liftTCM $ Imp.srcFilePath srcFile
 
   let rf0 = mkRangeFile f Nothing
   TCM.setCurrentRange (Imp.beginningOfFile rf0) $ do

@@ -5,22 +5,16 @@ module Server.Handler.TextDocument.FileManagement
   )
 where
 
-import Agda.Interaction.FindFile (SourceFile (SourceFile))
-import qualified Agda.Interaction.Imports.More as Imp
 import Agda.Interaction.Imports.Virtual (parseVSource, vSrcFromUri)
 import Agda.Syntax.Common.Pretty (prettyShow)
-import Agda.TypeChecking.Monad (MonadTCM (liftTCM))
 import Agda.Utils.Lens ((^.))
 import Control.Monad.Trans (lift)
-import Data.Strict (Strict (toLazy))
 import qualified Data.Text as Text
 import Indexer (indexFile)
 import qualified Language.LSP.Protocol.Lens as LSP
 import qualified Language.LSP.Protocol.Message as LSP
 import qualified Language.LSP.Protocol.Types as LSP
-import Language.LSP.Protocol.Types.Uri.More (uriToPossiblyInvalidAbsolutePath)
 import qualified Language.LSP.Server as LSP
-import qualified Language.LSP.VFS as VFS
 import Monad (ServerM, modifyModel, modifyVfsIndex)
 import qualified Server.Model as Model
 import Server.Model.Handler (notificationHandlerWithAgdaLib, takeOverNotificationHandlerWithAgdaLib)

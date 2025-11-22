@@ -13,7 +13,6 @@ import Agda.Interaction.FindFile (srcFilePath)
 #endif
 import qualified Agda.Interaction.Imports as Imp
 import qualified Agda.Interaction.Imports.More as Imp
-import Agda.Syntax.Common.Pretty (prettyShow)
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Translation.ConcreteToAbstract (ToAbstract (toAbstract), TopLevel (TopLevel), TopLevelInfo)
 import qualified Agda.TypeChecking.Monad as TCM

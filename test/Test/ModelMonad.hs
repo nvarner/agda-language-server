@@ -5,25 +5,20 @@
 
 module Test.ModelMonad (tests) where
 
-import qualified Agda.Compiler.Backend as TestData
 import Agda.Utils.Either (isLeft, isRight)
 import Agda.Utils.IORef (newIORef, readIORef, writeIORef)
 import Agda.Utils.Lens ((^.))
-import Control.Concurrent (newChan)
 import Control.Monad.IO.Class (MonadIO (liftIO))
-import Control.Monad.Reader (ReaderT (ReaderT, runReaderT))
 import qualified Language.LSP.Protocol.Message as LSP
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Protocol.Utils.SMethodMap as SMethodMap
 import qualified Language.LSP.Server as LSP
-import Monad (Env (Env, envModel), ServerT, createInitEnv, runServerT)
-import Options (Config, defaultOptions, initConfig)
-import qualified Server.CommandController as CommandController
+import Monad (ServerT, runServerT)
+import Options (Config)
 import Server.Model (Model)
 import Server.Model.AgdaLib (agdaLibIncludes)
 import Server.Model.Handler (requestHandlerWithAgdaFile)
-import Server.Model.Monad (MonadAgdaProject, askAgdaLib)
-import qualified Server.ResponseController as ResponseController
+import Server.Model.Monad (askAgdaLib)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit (testCase, (@?), (@?=))
 import qualified TestData

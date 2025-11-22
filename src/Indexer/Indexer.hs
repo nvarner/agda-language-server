@@ -24,7 +24,6 @@ import Agda.Utils.Maybe (whenJust)
 import Agda.Utils.Monad (when)
 import Data.Foldable (forM_, traverse_, toList)
 import Data.Functor.Compose (Compose (Compose, getCompose))
-import qualified Data.Set as Set
 import Data.Void (absurd)
 import Indexer.Monad
   ( AmbiguousNameLike (..),

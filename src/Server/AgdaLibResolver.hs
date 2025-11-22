@@ -3,8 +3,7 @@ module Server.AgdaLibResolver (findAgdaLib) where
 import Agda.Interaction.Library (AgdaLibFile)
 import Agda.Interaction.Library.Parse.More (parseLibFile, runP)
 import Agda.Utils.Either (maybeRight)
-import Agda.Utils.Maybe (caseMaybe, ifJust, listToMaybe)
-import qualified Language.LSP.Protocol.Types as LSP
+import Agda.Utils.Maybe (caseMaybe, listToMaybe)
 import Monad (ServerM, askFilesystemProvider, askModel, modifyModel)
 import qualified Server.Filesystem as FS
 import qualified Server.Model as Model
@@ -24,7 +23,7 @@ findAgdaLib isFileId = do
       result <- searchFilesystemForAgdaLib provider fileId
       lib <- case result of
         Just lib -> return lib
-        Nothing -> initAgdaLib
+        Nothing -> return initAgdaLib
       modifyModel $ Model.withAgdaLib lib
       return lib
 

@@ -14,9 +14,7 @@ import Data.Maybe (fromMaybe)
 import Data.Text (Text, unpack)
 import qualified Data.Text as Text
 import qualified Language.LSP.Protocol.Types as LSP
-import Language.LSP.Server (LspM)
-import Monad (ServerM, ServerT)
-import Options (Config)
+import Monad (ServerM)
 
 --------------------------------------------------------------------------------
 

@@ -1,5 +1,3 @@
-{-# LANGUAGE CPP #-}
-
 module Server.Model.AgdaLib
   ( AgdaLibOrigin (..),
     AgdaLib (AgdaLib),
@@ -14,30 +12,21 @@ module Server.Model.AgdaLib
   )
 where
 
-import Agda.Interaction.Library (
-    AgdaLibFile (_libIncludes, AgdaLibFile),
-    findProjectRoot,
+import Agda.Interaction.Library
+  ( AgdaLibFile (AgdaLibFile),
     LibName,
     OptionsPragma (OptionsPragma),
   )
-import Agda.Interaction.Library.More (tryRunLibM)
-import qualified Agda.TypeChecking.Monad as TCM
-import Agda.Utils.IORef (IORef, newIORef)
-import Agda.Utils.Lens (Lens', (<&>), (^.), set)
-import Agda.Utils.Maybe (listToMaybe, catMaybes)
-import Control.Monad.IO.Class (MonadIO (liftIO))
-import Data.Map (Map)
-import qualified Language.LSP.Protocol.Types as LSP
-import qualified Language.LSP.Protocol.Types.Uri.More as LSP
-import Server.Model.AgdaFile (AgdaFile)
-import Agda.Interaction.Library.Base (libFile, LibName (..), libName, libIncludes, libPragmas)
-import Language.LSP.Protocol.Types.Uri.More (uriToPossiblyInvalidFilePath)
+import Agda.Interaction.Library.Base (libIncludes, libName, libPragmas)
+import Agda.Syntax.Common.Pretty (Pretty, doubleQuotes, pretty, pshow, text, (<+>))
+import Agda.Utils.Lens (Lens', set, (<&>), (^.))
 import Agda.Utils.Null (empty)
-import Agda.Syntax.Common.Pretty (Pretty, pretty, vcat, prettyAssign, text, pshow, doubleQuotes, (<+>))
-import qualified Text.URI as ParsedUri
-import qualified Data.Text as Text
-import qualified Server.Filesystem as FS
 import Control.Monad (forM)
+import Control.Monad.IO.Class (MonadIO)
+import qualified Language.LSP.Protocol.Types as LSP
+import Language.LSP.Protocol.Types.Uri.More (uriToPossiblyInvalidFilePath)
+import qualified Language.LSP.Protocol.Types.Uri.More as LSP
+import qualified Server.Filesystem as FS
 
 data AgdaLibOrigin = FromFile !FS.FileId | Defaulted
   deriving (Show, Eq)
@@ -58,23 +47,12 @@ instance Pretty AgdaLib where
       <+> text "includes:"
       <+> pretty (agdaLib ^. agdaLibIncludes)
 
-initAgdaLibWithOrigin :: (MonadIO m) => AgdaLibOrigin -> m AgdaLib
-initAgdaLibWithOrigin origin = do
-#if MIN_VERSION_Agda(2,8,0)
-  let libName = LibName "" []
-  tcState <- liftIO TCM.initStateIO
-#else
-  let libName = ""
-  let tcState = TCM.initState
-#endif
-  let persistentState = TCM.stPersistentState tcState
-  let tcState' = tcState { TCM.stPersistentState = persistentState { TCM.stInteractionOutputCallback = \_ -> return () } }
-  tcStateRef <- liftIO $ newIORef tcState'
-  let tcEnv = TCM.initEnv
+initAgdaLibWithOrigin :: AgdaLibOrigin -> AgdaLib
+initAgdaLibWithOrigin origin =
   let optionsPragma = OptionsPragma [] empty
-  return $ AgdaLib libName [] optionsPragma [] origin
+   in AgdaLib empty [] optionsPragma [] origin
 
-initAgdaLib :: (MonadIO m) => m AgdaLib
+initAgdaLib :: AgdaLib
 initAgdaLib = initAgdaLibWithOrigin Defaulted
 
 agdaLibName :: Lens' AgdaLib LibName
@@ -105,7 +83,7 @@ agdaLibFromFile agdaLibFile agdaLibIsFileId = do
         Nothing -> return . FS.LocalFilePath
         Just parent -> \include -> FS.LocalFilePath include `FS.fileIdRelativeTo` parent
   includes <- forM (agdaLibFile ^. libIncludes) includeToAbsolute
-  initAgdaLibWithOrigin (FromFile agdaLibFileId)
+  return (initAgdaLibWithOrigin (FromFile agdaLibFileId))
     <&> set agdaLibName (agdaLibFile ^. libName)
     <&> set agdaLibIncludes includes
     <&> set agdaLibOptionsPragma (agdaLibFile ^. libPragmas)
@@ -121,4 +99,4 @@ agdaLibToFile relativeToUri agdaLib = case agdaLib ^. agdaLibOrigin of
         uri = FS.fileIdToUri fileId
         above = LSP.uriHeightAbove uri relativeToUri
         filePath = LSP.uriToPossiblyInvalidFilePath uri
-    in Just $ AgdaLibFile (agdaLib ^. agdaLibName) filePath above includePaths [] (agdaLib ^. agdaLibOptionsPragma)
+     in Just $ AgdaLibFile (agdaLib ^. agdaLibName) filePath above includePaths [] (agdaLib ^. agdaLibOptionsPragma)

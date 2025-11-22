@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
@@ -7,13 +6,9 @@ module Monad where
 
 import Agda.IR
 import Agda.Interaction.Base (IOTCM)
-import Agda.Interaction.Library (findProjectRoot)
-import Agda.Interaction.Library.More (tryRunLibM)
 import Agda.TypeChecking.Monad (TCMT)
 import qualified Agda.TypeChecking.Monad as TCM
-import Agda.Utils.Lens (Lens', (^.))
 import Control.Concurrent
-import Control.Exception (Exception)
 import qualified Control.Exception as E
 import Control.Monad.Reader
 import Data.IORef
@@ -21,14 +16,12 @@ import Data.IORef
     modifyIORef',
     newIORef,
     readIORef,
-    writeIORef,
   )
-import Data.Maybe (fromMaybe, isJust)
+import Data.Maybe (isJust)
 import Data.Text
   ( Text,
     pack,
   )
-import qualified Language.LSP.Protocol.Types as LSP
 import Language.LSP.Server
   ( LspM,
     MonadLsp,
@@ -42,12 +35,10 @@ import Server.Filesystem (MonadFilesystem)
 import qualified Server.Filesystem as FS
 import Server.Model (Model)
 import qualified Server.Model as Model
-import Server.Model.AgdaLib (AgdaLib, initAgdaLib)
 import Server.ResponseController (ResponseController)
 import qualified Server.ResponseController as ResponseController
 import Server.VfsIndex (VfsIndex)
 import qualified Server.VfsIndex as VfsIndex
-import System.FilePath (takeDirectory)
 
 --------------------------------------------------------------------------------
 

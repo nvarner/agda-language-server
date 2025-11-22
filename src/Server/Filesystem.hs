@@ -25,17 +25,16 @@ import Agda.Syntax.Common.Pretty (Pretty, pretty, prettyShow)
 import Agda.Utils.Either (maybeRight)
 import Agda.Utils.FileName (AbsolutePath, absolute, sameFile)
 import Agda.Utils.IO (catchIO)
-import Agda.Utils.IO.UTF8 (ReadException, readTextFile)
+import Agda.Utils.IO.UTF8 (readTextFile)
 import Agda.Utils.List (nubM)
-import Agda.Utils.Maybe (fromMaybe, maybe)
-import Control.Exception (try, tryJust)
+import Agda.Utils.Maybe (fromMaybe)
+import Control.Exception (try)
 import qualified Control.Exception as E
 import Control.Monad (foldM, forM)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import qualified Data.Strict as Strict
 import Data.Text (Text)
 import qualified Data.Text as Text
-import Language.LSP.Protocol.Types (NormalizedUri)
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Protocol.Types.Uri.More as LSP
 import Language.LSP.Server (MonadLsp)

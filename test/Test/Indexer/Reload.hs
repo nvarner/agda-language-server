@@ -1,7 +1,5 @@
 module Test.Indexer.Reload (tests) where
 
-import Agda.Interaction.Imports.Virtual (parseSourceFromContents)
-import Agda.Syntax.Common.Pretty (prettyShow)
 import Control.Monad.IO.Class (liftIO)
 import qualified Data.Text as Text
 import Indexer (indexFile)
@@ -11,7 +9,7 @@ import Monad (runServerT)
 import Server.AgdaProjectResolver (findAgdaProject)
 import Server.Model.Monad (runWithAgdaProjectT)
 import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.HUnit (assertFailure, testCase, (@?=))
+import Test.Tasty.HUnit (testCase, (@?=))
 import qualified TestData
 
 tests :: TestTree

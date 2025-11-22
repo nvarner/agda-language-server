@@ -3,9 +3,9 @@
 module Test.Indexer.Invariants.NoOverlap (testNoOverlap) where
 
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Common.Pretty (Doc, Pretty (prettyList), align, parens, pretty, prettyShow, text, vcat, (<+>))
+import Agda.Syntax.Common.Pretty (Doc, Pretty (prettyList), align, pretty, prettyShow, text, vcat, (<+>))
 import Agda.Utils.Lens ((^.))
-import Control.Monad (forM, forM_)
+import Control.Monad (forM_)
 import Control.Monad.Writer.CPS (Writer, execWriter, tell)
 import Data.Foldable (foldrM)
 import Data.IntMap (IntMap)

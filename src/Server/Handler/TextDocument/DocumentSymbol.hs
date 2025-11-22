@@ -1,10 +1,8 @@
 module Server.Handler.TextDocument.DocumentSymbol (documentSymbolHandler) where
 
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Maybe (fromMaybe, mapMaybe)
 import Agda.Utils.Monad (forMaybeM)
-import Control.Monad (forM)
 import Control.Monad.Trans (lift)
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -13,13 +11,13 @@ import qualified Language.LSP.Protocol.Message as LSP
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Server as LSP
 import Monad (ServerM)
-import Server.Model.AgdaFile (AgdaFile, agdaFileSymbols, defNameRange, symbolByName, symbolsByParent)
+import Server.Model.AgdaFile (AgdaFile, defNameRange, symbolByName, symbolsByParent)
 import Server.Model.Handler (requestHandlerWithAgdaFile)
-import Server.Model.Monad (MonadAgdaFile (askAgdaFile), useAgdaFile)
+import Server.Model.Monad (MonadAgdaFile (askAgdaFile))
 import Server.Model.Symbol (SymbolInfo (symbolName), SymbolKind (..), lspSymbolKind, symbolKind, symbolShortName, symbolType)
 
 documentSymbolHandler :: LSP.Handlers ServerM
-documentSymbolHandler = requestHandlerWithAgdaFile LSP.SMethod_TextDocumentDocumentSymbol $ \req responder -> do
+documentSymbolHandler = requestHandlerWithAgdaFile LSP.SMethod_TextDocumentDocumentSymbol $ \_req responder -> do
   file <- askAgdaFile
   let symbols = symbolsByParent file
   let topLevelNames = fromMaybe [] $ Map.lookup Nothing symbols

@@ -1,13 +1,9 @@
 module Test.Model (tests) where
 
-import Agda.Utils.Lens (set, (<&>), (^.))
+import Agda.Utils.Lens ((^.))
 import Agda.Utils.Maybe (isJust, isNothing)
-import qualified Data.Map as Map
-import qualified Language.LSP.Protocol.Types as LSP
-import Server.Model (Model (Model))
 import qualified Server.Model as Model
-import Server.Model.AgdaFile (emptyAgdaFile)
-import Server.Model.AgdaLib (agdaLibIncludes, initAgdaLib)
+import Server.Model.AgdaLib (agdaLibIncludes)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit (testCase, (@?), (@?=))
 import qualified TestData

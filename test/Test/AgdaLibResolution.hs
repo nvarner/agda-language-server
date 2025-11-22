@@ -5,17 +5,15 @@ module Test.AgdaLibResolution (tests) where
 #if MIN_VERSION_Agda(2,8,0)
 import Agda.Interaction.Library (parseLibName)
 #endif
-import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
-import Indexer (indexFile, usingSrcAsCurrent)
-import qualified Language.LSP.Protocol.Types as LSP
+import Indexer (indexFile)
 import qualified Language.LSP.Server as LSP
 import Monad (runServerT)
 import Server.AgdaLibResolver (findAgdaLib)
 import qualified Server.Filesystem as FS
 import Server.Model.AgdaLib (AgdaLibOrigin (FromFile), agdaLibIncludes, agdaLibName, agdaLibOrigin)
-import Server.Model.Monad (MonadAgdaProject, askAgdaLib, runWithAgdaProjectT)
+import Server.Model.Monad (runWithAgdaProjectT)
 import System.Directory (makeAbsolute)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit (testCase, (@?=))

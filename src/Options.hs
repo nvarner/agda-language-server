@@ -125,16 +125,6 @@ parseOpts argv = case getOpt Permute options argv of
   (o, n, []) -> return (foldl (flip id) defaultOptions o, n)
   (_, _, errs) -> ioError $ userError $ concat errs ++ usageInfo usage options
 
--- | Removes RTS options from a list of options (stolen from Agda)
-stripRTS :: [String] -> [String]
-stripRTS [] = []
-stripRTS ("--RTS" : argv) = argv
-stripRTS (arg : argv)
-  | is "+RTS" arg = stripRTS $ drop 1 $ dropWhile (not . is "-RTS") argv
-  | otherwise = arg : stripRTS argv
-  where
-    is x arg = [x] == take 1 (words arg)
-
 -- | Extract Agda options (+AGDA ... -AGDA) from a list of options
 extractAgdaOpts :: [String] -> ([String], [String])
 extractAgdaOpts argv =

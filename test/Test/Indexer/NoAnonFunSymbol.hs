@@ -2,8 +2,7 @@ module Test.Indexer.NoAnonFunSymbol (tests) where
 
 import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Lens ((^.))
-import Agda.Utils.Maybe (ifJustM, whenJust, whenJustM)
-import Control.Monad (forM)
+import Agda.Utils.Maybe (whenJust)
 import Data.Foldable (find)
 import Data.List (isInfixOf)
 import qualified Data.Map as Map

@@ -19,8 +19,6 @@ import           Agda.Interaction.Base          ( CommandQueue(..)
 import           Agda.Interaction.BasicOps      ( atTopLevel
                                                 , typeInCurrent
                                                 )
-import           Agda.Interaction.Highlighting.Precise
-                                                ( HighlightingInfo )
 import qualified Agda.Interaction.Imports      as Imp
 import           Agda.Interaction.InteractionTop
                                                 ( cmd_load'
@@ -49,9 +47,7 @@ import           Agda.Syntax.Parser             ( exprParser
                                                 )
 import           Agda.Syntax.Translation.ConcreteToAbstract
                                                 ( concreteToAbstract_ )
-import           Agda.TypeChecking.Monad        ( HasOptions(commandLineOptions)
-                                                , setInteractionOutputCallback
-                                                )
+import           Agda.TypeChecking.Monad        ( setInteractionOutputCallback )
 #if MIN_VERSION_Agda(2,8,0)
 import           Agda.Interaction.Command       ( CommandM, localStateCommandM )
 import           Agda.TypeChecking.Monad.Trace  ( runPM )
@@ -68,15 +64,10 @@ import           Data.Text                      ( Text
                                                 , pack
                                                 , unpack
                                                 )
-import qualified Data.Text                     as Text
-import           Language.LSP.Server            ( LspM )
 import qualified Language.LSP.Server           as LSP
 import qualified Language.LSP.Protocol.Types   as LSP
 import qualified Language.LSP.VFS              as VFS
 import           Monad
-import           Options                        ( Config
-                                                , Options(optRawAgdaOptions)
-                                                )
 
 initialiseCommandQueue :: IO CommandQueue
 initialiseCommandQueue = CommandQueue <$> newTChanIO <*> newTVarIO Nothing

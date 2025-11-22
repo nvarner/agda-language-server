@@ -24,7 +24,10 @@ import qualified Data.Strict.Maybe as Strict
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Language.LSP.Protocol.Types as LSP
+#if MIN_VERSION_Agda(2,8,0)
+#else
 import Data.Functor (void)
+#endif
 
 -- Note:  LSP srclocs are 0-base
 --        Agda srclocs are 1-base
