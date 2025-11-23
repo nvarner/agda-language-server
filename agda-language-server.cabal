@@ -63,6 +63,7 @@ library
       Indexer.Indexer
       Indexer.Monad
       Indexer.Postprocess
+      Indexer.Prepare
       Language.LSP.Protocol.Types.More
       Language.LSP.Protocol.Types.Uri.More
       Monad
@@ -92,6 +93,7 @@ library
       Server.Model.AgdaLib
       Server.Model.AgdaProject
       Server.Model.Handler
+      Server.Model.InstalledLibsFile
       Server.Model.Monad
       Server.Model.Symbol
       Server.ResponseController
@@ -106,7 +108,7 @@ library
       OverloadedStrings
       PatternSynonyms
       TypeOperators
-  ghc-options: -Wincomplete-patterns -Werror=incomplete-patterns -Wunused-local-binds -Wunused-pattern-binds -Wunused-do-bind -Wunused-foralls -Wunused-imports -Wwarnings-deprecations -Wwrong-do-bind -Wmissing-fields -Wmissing-methods -Wmissing-pattern-synonym-signatures -Wmissing-signatures -Wsimplifiable-class-constraints -fno-warn-orphans -Werror
+  ghc-options: -Wincomplete-patterns -Werror=incomplete-patterns -Wunused-local-binds -Wunused-pattern-binds -Wunused-do-bind -Wunused-foralls -Wunused-imports -Wwarnings-deprecations -Wwrong-do-bind -Wmissing-fields -Wmissing-methods -Wmissing-pattern-synonym-signatures -Wmissing-signatures -Wsimplifiable-class-constraints -fno-warn-orphans
   build-depends:
       Agda
     , aeson
@@ -153,7 +155,7 @@ executable als
       OverloadedStrings
       PatternSynonyms
       TypeOperators
-  ghc-options: -Wincomplete-patterns -Werror=incomplete-patterns -Wunused-local-binds -Wunused-pattern-binds -Wunused-do-bind -Wunused-foralls -Wunused-imports -Wwarnings-deprecations -Wwrong-do-bind -Wmissing-fields -Wmissing-methods -Wmissing-pattern-synonym-signatures -Wmissing-signatures -Wsimplifiable-class-constraints -fno-warn-orphans -Werror -rtsopts
+  ghc-options: -Wincomplete-patterns -Werror=incomplete-patterns -Wunused-local-binds -Wunused-pattern-binds -Wunused-do-bind -Wunused-foralls -Wunused-imports -Wwarnings-deprecations -Wwrong-do-bind -Wmissing-fields -Wmissing-methods -Wmissing-pattern-synonym-signatures -Wmissing-signatures -Wsimplifiable-class-constraints -fno-warn-orphans -rtsopts
   build-depends:
       Agda
     , aeson
@@ -225,6 +227,7 @@ test-suite als-test
       Indexer.Indexer
       Indexer.Monad
       Indexer.Postprocess
+      Indexer.Prepare
       Language.LSP.Protocol.Types.More
       Language.LSP.Protocol.Types.Uri.More
       Monad
@@ -254,6 +257,7 @@ test-suite als-test
       Server.Model.AgdaLib
       Server.Model.AgdaProject
       Server.Model.Handler
+      Server.Model.InstalledLibsFile
       Server.Model.Monad
       Server.Model.Symbol
       Server.ResponseController
@@ -268,7 +272,7 @@ test-suite als-test
       OverloadedStrings
       PatternSynonyms
       TypeOperators
-  ghc-options: -Wincomplete-patterns -Werror=incomplete-patterns -Wunused-local-binds -Wunused-pattern-binds -Wunused-do-bind -Wunused-foralls -Wunused-imports -Wwarnings-deprecations -Wwrong-do-bind -Wmissing-fields -Wmissing-methods -Wmissing-pattern-synonym-signatures -Wmissing-signatures -Wsimplifiable-class-constraints -fno-warn-orphans -Werror -rtsopts
+  ghc-options: -Wincomplete-patterns -Werror=incomplete-patterns -Wunused-local-binds -Wunused-pattern-binds -Wunused-do-bind -Wunused-foralls -Wunused-imports -Wwarnings-deprecations -Wwrong-do-bind -Wmissing-fields -Wmissing-methods -Wmissing-pattern-synonym-signatures -Wmissing-signatures -Wsimplifiable-class-constraints -fno-warn-orphans -rtsopts
   build-depends:
       Agda
     , aeson

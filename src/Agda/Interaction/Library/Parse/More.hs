@@ -10,6 +10,7 @@
 module Agda.Interaction.Library.Parse.More
   ( parseLibFile,
     runP,
+    trimLineComment,
   )
 where
 
@@ -276,6 +277,10 @@ groupLines (Header _ h : ls) = (GenericEntry h [c | Content _ c <- cs] :) <$> gr
 -- | Break a comma-separated string.  Result strings are @trim@med.
 splitCommas :: String -> [String]
 splitCommas = words . map (\c -> if c == ',' then ' ' else c)
+
+-- | Remove leading whitespace and line comment.
+trimLineComment :: String -> String
+trimLineComment = stripComments . ltrim
 
 -- | ...and trailing, but not leading, whitespace.
 stripComments :: String -> String

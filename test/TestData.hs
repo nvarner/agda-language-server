@@ -50,12 +50,14 @@ import qualified Server.CommandController as CommandController
 import qualified Server.Filesystem as FS
 import Server.Model (Model (Model))
 import Server.Model.AgdaFile (AgdaFile, emptyAgdaFile)
-import Server.Model.AgdaLib (agdaLibIncludes, initAgdaLib)
+import Server.Model.AgdaLib (agdaLibIncludes, AgdaLib (AgdaLib))
 import qualified Server.Model.AgdaProject as AgdaProject
 import Server.Model.Monad (MonadAgdaProject, runWithAgdaProjectT)
 import qualified Server.ResponseController as ResponseController
 import qualified Server.VfsIndex as VfsIndex
 import System.FilePath (takeBaseName)
+import Agda.Utils.Null (empty)
+import Server.Filesystem (FileId(LocalFilePath))
 
 data AgdaFileDetails = AgdaFileDetails
   { fileName :: !String,
@@ -157,16 +159,15 @@ getModel = do
                 "file:///home/user2/project2/",
                 "https://example.com/agda/"
               ]
-  let testLib1 = initAgdaLib & set agdaLibIncludes includes1
-  testProject1 <- AgdaProject.new testLib1
+  let testLib1 = AgdaLib empty includes1 mempty empty (FS.LocalFilePath "")
+  testProject1 <- AgdaProject.new (FS.Uri . LSP.toNormalizedUri . LSP.Uri $ "file:///home/user/project1/") (Just testLib1)
 
   let includes2 =
         FS.Uri . LSP.toNormalizedUri . LSP.Uri
           <$> ["file:///home/user/project2/"]
-  let testLib2 = initAgdaLib & set agdaLibIncludes includes2
-  testProject2 <- AgdaProject.new testLib2
+  let testLib2 = AgdaLib empty includes2 mempty empty (FS.LocalFilePath "")
+  testProject2 <- AgdaProject.new (FS.Uri . LSP.toNormalizedUri . LSP.Uri $ "file:///home/user/project2/") (Just testLib2)
 
-  let libs = [testLib1, testLib2]
   let projects = [testProject1, testProject2]
 
   let testFile1 = emptyAgdaFile
@@ -180,7 +181,7 @@ getModel = do
             (fileUri3, testFile3)
           ]
 
-  return $ Model libs projects files
+  return $ Model empty projects files
 
 --------------------------------------------------------------------------------
 

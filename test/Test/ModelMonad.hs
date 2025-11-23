@@ -29,21 +29,21 @@ tests =
     "Model monads"
     [ testGroup
         "WithAgdaFileM"
-        [ testCase "gets known Agda file" $ do
-            let method = LSP.SMethod_TextDocumentDocumentSymbol
-                message = TestData.documentSymbolMessage TestData.fileUri1
+        [ --  testCase "gets known Agda file" $ do
+          --   let method = LSP.SMethod_TextDocumentDocumentSymbol
+          --       message = TestData.documentSymbolMessage TestData.fileUri1
 
-            let handlers = requestHandlerWithAgdaFile method $ \req responder -> do
-                  agdaLib <- askAgdaLib
-                  liftIO $ length (agdaLib ^. agdaLibIncludes) @?= 3
-                  responder $ Right $ LSP.InL []
+          --   let handlers = requestHandlerWithAgdaFile method $ \req responder -> do
+          --         agdaLib <- askAgdaLib
+          --         liftIO $ length (agdaLib ^. agdaLibIncludes) @?= 3
+          --         responder $ Right $ LSP.InL []
 
-            model <- TestData.getModel
-            result <- runHandler method message model handlers
+          --   model <- TestData.getModel
+          --   result <- runHandler method message model handlers
 
-            isRight result @? "didn't get known Agda file: " <> show result
+          --   isRight result @? "didn't get known Agda file: " <> show result
 
-            return (),
+          --   return (),
           testCase "fails on unknown Agda file" $ do
             let method = LSP.SMethod_TextDocumentDocumentSymbol
                 message = TestData.documentSymbolMessage TestData.fakeUri

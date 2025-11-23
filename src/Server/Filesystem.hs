@@ -4,7 +4,9 @@
 
 module Server.Filesystem
   ( FileId (..),
+    referToSameFile,
     fileIdToUri,
+    fileIdToPossiblyInvalidFilePath,
     fileIdToPossiblyInvalidAbsolutePath,
     fileIdRelativeTo,
     fileIdParent,
@@ -12,6 +14,7 @@ module Server.Filesystem
     IsFileId (..),
     MonadFilesystem (..),
     Provider,
+    doesFileExist,
     getFileContents,
     getChildren,
     LspVirtualFilesystem (..),
@@ -27,7 +30,8 @@ import Agda.Utils.FileName (AbsolutePath, absolute, sameFile)
 import Agda.Utils.IO (catchIO)
 import Agda.Utils.IO.UTF8 (readTextFile)
 import Agda.Utils.List (nubM)
-import Agda.Utils.Maybe (fromMaybe)
+import Agda.Utils.Maybe (fromMaybe, isJust)
+import Agda.Utils.Monad (anyM)
 import Control.Exception (try)
 import qualified Control.Exception as E
 import Control.Monad (foldM, forM)
@@ -43,6 +47,7 @@ import qualified Language.LSP.VFS as VFS
 import Options (Config)
 import Server.VfsIndex (VfsIndex, getEntry, getEntryChildren)
 import System.Directory (canonicalizePath, doesDirectoryExist, getDirectoryContents)
+import qualified System.Directory
 import System.FilePath (isAbsolute, takeDirectory, takeExtension, (</>))
 import System.IO.Error (isPermissionError)
 import qualified Text.URI as ParsedUri
@@ -50,7 +55,7 @@ import qualified Text.URI as ParsedUri
 data FileId
   = Uri !LSP.NormalizedUri
   | LocalFilePath !FilePath
-  deriving (Eq)
+  deriving (Eq, Ord)
 
 instance Pretty FileId where
   pretty (Uri uri) = pretty $ LSP.getNormalizedUri uri
@@ -59,13 +64,13 @@ instance Pretty FileId where
 instance Show FileId where
   show = prettyShow
 
-referToSameFile :: FileId -> FileId -> IO Bool
+referToSameFile :: (MonadIO m) => FileId -> FileId -> m Bool
 referToSameFile a b =
   case (tryFileIdToFilePath a, tryFileIdToFilePath b) of
     (Just a, Just b) -> do
-      absA <- absolute a
-      absB <- absolute b
-      sameFile absA absB
+      absA <- liftIO $ absolute a
+      absB <- liftIO $ absolute b
+      liftIO $ sameFile absA absB
     (Just _, Nothing) -> return False
     (Nothing, Just _) -> return False
     (Nothing, Nothing) -> do
@@ -86,6 +91,10 @@ tryFileIdToFilePath = \case
   Uri uri -> LSP.uriToFilePath $ LSP.fromNormalizedUri uri
   LocalFilePath filePath -> Just filePath
 
+fileIdToPossiblyInvalidFilePath :: FileId -> FilePath
+fileIdToPossiblyInvalidFilePath (Uri uri) = LSP.uriToPossiblyInvalidFilePath uri
+fileIdToPossiblyInvalidFilePath (LocalFilePath path) = path
+
 fileIdToPossiblyInvalidAbsolutePath :: (MonadIO m) => FileId -> m AbsolutePath
 fileIdToPossiblyInvalidAbsolutePath (Uri uri) = LSP.uriToPossiblyInvalidAbsolutePath uri
 fileIdToPossiblyInvalidAbsolutePath (LocalFilePath path) = liftIO $ absolute path
@@ -101,7 +110,8 @@ fileIdIsAbsolute (LocalFilePath path) = isAbsolute path
 -- | Makes the first 'FileId' absolute, treating the second 'FileId' as the base
 fileIdRelativeTo :: (MonadIO m) => FileId -> FileId -> m FileId
 fileIdRelativeTo fileId _baseFileId | fileIdIsAbsolute fileId = return fileId
-fileIdRelativeTo (LocalFilePath path) (LocalFilePath basePath) = fmap LocalFilePath . liftIO $ canonicalizePath $ basePath </> path
+fileIdRelativeTo (LocalFilePath path) (LocalFilePath basePath) =
+  fmap LocalFilePath . liftIO $ canonicalizePath $ basePath </> path
 fileIdRelativeTo fileId baseFileId = fromMaybe (pure fileId) $ do
   uri <- fileIdToParsedUri fileId
   baseUri <- fileIdToParsedUri baseFileId
@@ -154,8 +164,12 @@ class (MonadLsp Config m) => MonadFilesystem m where
   askVfsIndex :: m VfsIndex
 
 class Provider a where
+  doesFileExistImpl :: (MonadFilesystem m) => a -> FileId -> m Bool
   getFileImpl :: (MonadFilesystem m) => a -> FileId -> m (Maybe File)
   getChildrenImpl :: (MonadFilesystem m) => a -> FileId -> m [FileId]
+
+doesFileExist :: (MonadFilesystem m, Provider a, IsFileId f) => a -> f -> m Bool
+doesFileExist provider fileId = doesFileExistImpl provider (toFileId fileId)
 
 getFile :: (MonadFilesystem m, Provider a, IsFileId f) => a -> f -> m (Maybe File)
 getFile provider fileId = getFileImpl provider (toFileId fileId)
@@ -171,6 +185,10 @@ getChildren provider fileId = getChildrenImpl provider (toFileId fileId)
 data LspVirtualFilesystem = LspVirtualFilesystem
 
 instance Provider LspVirtualFilesystem where
+  doesFileExistImpl _provider fileId = do
+    let uri = fileIdToUri fileId
+    isJust <$> LSP.getVirtualFile uri
+
   getFileImpl _provider fileId = do
     let uri = fileIdToUri fileId
     vfile <- LSP.getVirtualFile uri
@@ -189,6 +207,12 @@ instance Provider LspVirtualFilesystem where
 data OsFilesystem = OsFilesystem
 
 instance Provider OsFilesystem where
+  doesFileExistImpl _provider fileId =
+    case tryFileIdToFilePath fileId of
+      Nothing -> return False
+      Just filePath ->
+        liftIO $ System.Directory.doesFileExist filePath
+
   getFileImpl _provider fileId =
     case tryFileIdToFilePath fileId of
       Nothing -> return Nothing
@@ -220,6 +244,8 @@ instance Provider OsFilesystem where
 data ProviderWrapper = forall a. (Provider a) => Wrap a
 
 instance Provider ProviderWrapper where
+  doesFileExistImpl (Wrap provider) = doesFileExistImpl provider
+
   getFileImpl (Wrap provider) = getFileImpl provider
 
   getChildrenImpl (Wrap provider) = getChildrenImpl provider
@@ -227,6 +253,9 @@ instance Provider ProviderWrapper where
 data Layered = Layered {layeredProviders :: ![ProviderWrapper]}
 
 instance Provider Layered where
+  doesFileExistImpl (Layered providers) fileId =
+    anyM (\provider -> doesFileExistImpl provider fileId) providers
+
   getFileImpl (Layered providers) fileId = do
     let results = flip getFileImpl fileId <$> providers
     foldM

@@ -81,7 +81,7 @@ parseSourceFromContents srcUri srcFile contentsStrict = do
     parsedModName <- TCM.liftTCM $ Imp.moduleName f parsedMod
 
     agdaLib <- askAgdaLib
-    let libs = maybeToList $ agdaLibToFile srcUri agdaLib
+    let libs = maybeToList $ agdaLibToFile srcUri <$> agdaLib
 
     return
       Imp.Source

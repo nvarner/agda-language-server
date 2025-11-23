@@ -12,7 +12,6 @@
 module Server.Model.Monad
   ( MonadAgdaProject (..),
     askAgdaLib,
-    useAgdaLib,
     MonadAgdaFile (..),
     useAgdaFile,
     WithAgdaProjectT,
@@ -56,13 +55,8 @@ useAgdaProject lens = do
   agdaProject <- askAgdaProject
   return $ agdaProject ^. lens
 
-askAgdaLib :: (MonadAgdaProject m) => m AgdaLib
+askAgdaLib :: (MonadAgdaProject m) => m (Maybe AgdaLib)
 askAgdaLib = useAgdaProject AgdaProject.agdaLib
-
-useAgdaLib :: (MonadAgdaProject m) => Lens' AgdaLib a -> m a
-useAgdaLib lens = do
-  agdaLib <- askAgdaLib
-  return $ agdaLib ^. lens
 
 class (MonadAgdaProject m) => MonadAgdaFile m where
   askAgdaFile :: m AgdaFile

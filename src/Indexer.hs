@@ -16,13 +16,13 @@ import qualified Agda.Interaction.Imports.More as Imp
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Translation.ConcreteToAbstract (ToAbstract (toAbstract), TopLevel (TopLevel), TopLevelInfo)
 import qualified Agda.TypeChecking.Monad as TCM
-import Agda.TypeChecking.Monad.Options.More (setCommandLineOptionsByLib)
 import qualified Data.Map as Map
 import Indexer.Indexer (indexAst)
 import Indexer.Monad (execIndexerM)
 import Indexer.Postprocess (postprocess)
 import Server.Model.AgdaFile (AgdaFile)
 import Server.Model.Monad (WithAgdaProjectM)
+import Indexer.Prepare (setCommandLineOptionsByLib)
 
 usingSrcAsCurrent :: Imp.Source -> WithAgdaProjectM a -> WithAgdaProjectM a
 usingSrcAsCurrent src x = do
@@ -30,9 +30,9 @@ usingSrcAsCurrent src x = do
 
   TCM.liftTCM $ Imp.setOptionsFromSourcePragmas True src
 
-  TCM.setCurrentRange (C.modPragmas . Imp.srcModule $ src) $
-    -- Now reset the options
-    setCommandLineOptionsByLib . TCM.stPersistentOptions . TCM.stPersistentState =<< TCM.getTC
+  TCM.setCurrentRange (C.modPragmas . Imp.srcModule $ src) $ do
+    persistentOptions <- TCM.stPersistentOptions . TCM.stPersistentState <$> TCM.getTC
+    setCommandLineOptionsByLib persistentOptions
 
 #if MIN_VERSION_Agda(2,8,0)
   TCM.modifyTCLens TCM.stModuleToSourceId $ Map.insert (Imp.srcModuleName src) (Imp.srcOrigin src)

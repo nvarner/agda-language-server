@@ -1,26 +1,18 @@
 module Server.Model.AgdaLib
   ( AgdaLibOrigin (..),
     AgdaLib (AgdaLib),
-    initAgdaLib,
     agdaLibName,
     agdaLibIncludes,
     agdaLibDependencies,
-    agdaLibOrigin,
-    isAgdaLibForUri,
     agdaLibFromFile,
     agdaLibToFile,
   )
 where
 
-import Agda.Interaction.Library
-  ( AgdaLibFile (AgdaLibFile),
-    LibName,
-    OptionsPragma (OptionsPragma),
-  )
-import Agda.Interaction.Library.Base (libIncludes, libName, libPragmas)
+import Agda.Interaction.Library (AgdaLibFile (AgdaLibFile), LibName, OptionsPragma)
+import Agda.Interaction.Library.Base (libDepends, libIncludes, libName, libPragmas)
 import Agda.Syntax.Common.Pretty (Pretty, doubleQuotes, pretty, pshow, text, (<+>))
-import Agda.Utils.Lens (Lens', set, (<&>), (^.))
-import Agda.Utils.Null (empty)
+import Agda.Utils.Lens (Lens', (<&>), (^.))
 import Control.Monad (forM)
 import Control.Monad.IO.Class (MonadIO)
 import qualified Language.LSP.Protocol.Types as LSP
@@ -36,24 +28,17 @@ data AgdaLib = AgdaLib
     _agdaLibIncludes :: ![FS.FileId],
     _agdaLibOptionsPragma :: !OptionsPragma,
     _agdaLibDependencies :: ![LibName],
-    _agdaLibOrigin :: !AgdaLibOrigin
+    _agdaLibFile :: !FS.FileId
   }
 
 instance Pretty AgdaLib where
   pretty agdaLib =
     text "AgdaLib"
       <+> doubleQuotes (pretty $ agdaLib ^. agdaLibName)
-      <+> pshow (agdaLib ^. agdaLibOrigin)
+      <+> text "file:"
+      <+> pshow (agdaLib ^. agdaLibFile)
       <+> text "includes:"
       <+> pretty (agdaLib ^. agdaLibIncludes)
-
-initAgdaLibWithOrigin :: AgdaLibOrigin -> AgdaLib
-initAgdaLibWithOrigin origin =
-  let optionsPragma = OptionsPragma [] empty
-   in AgdaLib empty [] optionsPragma [] origin
-
-initAgdaLib :: AgdaLib
-initAgdaLib = initAgdaLibWithOrigin Defaulted
 
 agdaLibName :: Lens' AgdaLib LibName
 agdaLibName f a = f (_agdaLibName a) <&> \x -> a {_agdaLibName = x}
@@ -67,11 +52,8 @@ agdaLibOptionsPragma f a = f (_agdaLibOptionsPragma a) <&> \x -> a {_agdaLibOpti
 agdaLibDependencies :: Lens' AgdaLib [LibName]
 agdaLibDependencies f a = f (_agdaLibDependencies a) <&> \x -> a {_agdaLibDependencies = x}
 
-agdaLibOrigin :: Lens' AgdaLib AgdaLibOrigin
-agdaLibOrigin f a = f (_agdaLibOrigin a) <&> \x -> a {_agdaLibOrigin = x}
-
-isAgdaLibForUri :: AgdaLib -> LSP.NormalizedUri -> Bool
-isAgdaLibForUri agdaLib uri = any (\include -> FS.fileIdToUri include `LSP.isUriAncestorOf` uri) (agdaLib ^. agdaLibIncludes)
+agdaLibFile :: Lens' AgdaLib FS.FileId
+agdaLibFile f a = f (_agdaLibFile a) <&> \x -> a {_agdaLibFile = x}
 
 -- | Given an 'AgdaLibFile' and the URI of that file, create the
 -- corresponding 'AgdaLib'
@@ -83,20 +65,21 @@ agdaLibFromFile agdaLibFile agdaLibIsFileId = do
         Nothing -> return . FS.LocalFilePath
         Just parent -> \include -> FS.LocalFilePath include `FS.fileIdRelativeTo` parent
   includes <- forM (agdaLibFile ^. libIncludes) includeToAbsolute
-  return (initAgdaLibWithOrigin (FromFile agdaLibFileId))
-    <&> set agdaLibName (agdaLibFile ^. libName)
-    <&> set agdaLibIncludes includes
-    <&> set agdaLibOptionsPragma (agdaLibFile ^. libPragmas)
+  return $
+    AgdaLib
+      (agdaLibFile ^. libName)
+      includes
+      (agdaLibFile ^. libPragmas)
+      (agdaLibFile ^. libDepends)
+      agdaLibFileId
 
--- | If the given `AgdaLib` came from a file, turn it back into one. Since
--- `AgdaLibFile`s are relative to an Agda file on the filesystem, the first
--- parameter is for the URI for the Agda file
-agdaLibToFile :: LSP.NormalizedUri -> AgdaLib -> Maybe AgdaLibFile
-agdaLibToFile relativeToUri agdaLib = case agdaLib ^. agdaLibOrigin of
-  Defaulted -> Nothing
-  FromFile fileId ->
-    let includePaths = uriToPossiblyInvalidFilePath . FS.fileIdToUri <$> agdaLib ^. agdaLibIncludes
-        uri = FS.fileIdToUri fileId
-        above = LSP.uriHeightAbove uri relativeToUri
-        filePath = LSP.uriToPossiblyInvalidFilePath uri
-     in Just $ AgdaLibFile (agdaLib ^. agdaLibName) filePath above includePaths [] (agdaLib ^. agdaLibOptionsPragma)
+-- | Turn an `AgdaLib` back into a file. Since `AgdaLibFile`s are relative to an
+-- Agda file on the filesystem, the first parameter is for the URI for the Agda
+-- file
+agdaLibToFile :: LSP.NormalizedUri -> AgdaLib -> AgdaLibFile
+agdaLibToFile relativeToUri agdaLib =
+  let includePaths = uriToPossiblyInvalidFilePath . FS.fileIdToUri <$> agdaLib ^. agdaLibIncludes
+      uri = FS.fileIdToUri $ agdaLib ^. agdaLibFile
+      above = LSP.uriHeightAbove uri relativeToUri
+      filePath = LSP.uriToPossiblyInvalidFilePath uri
+   in AgdaLibFile (agdaLib ^. agdaLibName) filePath above includePaths [] (agdaLib ^. agdaLibOptionsPragma)

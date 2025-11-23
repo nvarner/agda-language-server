@@ -1,7 +1,8 @@
 {-# LANGUAGE CPP #-}
 
 module Agda.Interaction.Library.More
-  ( tryRunLibM,
+  ( defaultLibraryFileIds,
+    tryRunLibM,
 #if MIN_VERSION_Agda(2,8,0)
 #else
     runLibErrorIO,
@@ -29,6 +30,24 @@ import Control.Monad.State.Lazy (evalStateT)
 import Control.Monad.Writer.Lazy (runWriterT)
 import Agda.Syntax.Common.Pretty (Pretty, pretty, text, (<+>))
 import Agda.Utils.Lens ((^.))
+import Agda.Utils.List1 (List1, NonEmpty ((:|)))
+import Agda.Version (version)
+import qualified Server.Filesystem as FS
+
+-- | The @~/.agda/libraries@ file lists the libraries Agda should know about.
+--   The content of @libraries@ is a list of paths to @.agda-lib@ files.
+--
+--   Agda honors also version-specific @libraries@ files, e.g. @libraries-2.6.0@.
+--
+--   @defaultLibraryFiles@ gives a list of all @libraries@ files Agda should process
+--   by default.  The first file in this list that exists is actually used.
+--
+defaultLibraryFiles :: List1 FilePath
+defaultLibraryFiles = ("libraries-" ++ version) :| "libraries" : []
+
+defaultLibraryFileIds :: (MonadIO m) => FS.FileId -> m (List1 FS.FileId)
+defaultLibraryFileIds agdaDir =
+  traverse (`FS.fileIdRelativeTo` agdaDir) . fmap FS.LocalFilePath $ defaultLibraryFiles
 
 #if MIN_VERSION_Agda(2,8,0)
 -- Unneeded in 2.8.0 due to API changes

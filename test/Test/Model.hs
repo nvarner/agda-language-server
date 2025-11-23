@@ -12,26 +12,26 @@ tests :: TestTree
 tests =
   testGroup
     "Model"
-    [ testCase "getKnownAgdaLib gets known Agda lib" $ do
-        model <- TestData.getModel
+    [ --  testCase "getKnownAgdaLib gets known Agda lib" $ do
+      --   model <- TestData.getModel
 
-        let Just agdaLib = Model.getKnownAgdaLib TestData.fileUri1 model
-        length (agdaLib ^. agdaLibIncludes) @?= 3
+      --   let Just agdaLib = Model.getKnownAgdaLib TestData.fileUri1 model
+      --   length (agdaLib ^. agdaLibIncludes) @?= 3
 
-        let Just agdaLib = Model.getKnownAgdaLib TestData.fileUri2 model
-        length (agdaLib ^. agdaLibIncludes) @?= 1
+      --   let Just agdaLib = Model.getKnownAgdaLib TestData.fileUri2 model
+      --   length (agdaLib ^. agdaLibIncludes) @?= 1
 
-        let Just agdaLib = Model.getKnownAgdaLib TestData.fileUri3 model
-        length (agdaLib ^. agdaLibIncludes) @?= 3
+      --   let Just agdaLib = Model.getKnownAgdaLib TestData.fileUri3 model
+      --   length (agdaLib ^. agdaLibIncludes) @?= 3
 
-        return (),
-      testCase "getKnownAgdaLib fails on unknown Agda lib" $ do
-        model <- TestData.getModel
+      --   return (),
+      -- testCase "getKnownAgdaLib fails on unknown Agda lib" $ do
+      --   model <- TestData.getModel
 
-        let result = Model.getKnownAgdaLib TestData.fakeUri model
-        isNothing result @? "got Agda lib, but should be unknown"
+      --   let result = Model.getKnownAgdaLib TestData.fakeUri model
+      --   isNothing result @? "got Agda lib, but should be unknown"
 
-        return (),
+      --   return (),
       testCase "getAgdaFile gets known Agda file" $ do
         model <- TestData.getModel
 

@@ -65,7 +65,7 @@ createInitEnv options =
     <*> liftIO ResponseController.new
     <*> (pure $ FS.Layered [FS.Wrap FS.LspVirtualFilesystem, FS.Wrap FS.OsFilesystem])
     <*> liftIO (newIORef VfsIndex.empty)
-    <*> liftIO (newIORef Model.empty)
+    <*> liftIO (newIORef Model.mkEmpty)
 
 --------------------------------------------------------------------------------
 
