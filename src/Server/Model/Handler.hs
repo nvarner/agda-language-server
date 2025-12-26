@@ -12,7 +12,7 @@ module Server.Model.Handler
   )
 where
 
-import Agda.Syntax.Common.Pretty (prettyShow)
+import Agda.Syntax.Common.Pretty (pretty, prettyShow)
 import qualified Agda.TypeChecking.Monad as TCM
 import qualified Agda.TypeChecking.Pretty as TCM
 import Agda.Utils.Either (fromRightM)
@@ -25,6 +25,7 @@ import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Server as LSP
 import Monad (ServerM, askModel, catchTCError)
 import Server.AgdaProjectResolver (findAgdaProject)
+import qualified Server.Log as Log
 import qualified Server.Model as Model
 import Server.Model.Monad (WithAgdaFileM, WithAgdaProjectM, runWithAgdaFileT, runWithAgdaProjectT)
 #if MIN_VERSION_Agda(2,7,0)
@@ -58,15 +59,12 @@ takeOverNotificationHandlerWithAgdaLib notification handlerWithAgdaLib = do
   let uri = notification ^. LSP.params . LSP.textDocument . LSP.uri
       normUri = LSP.toNormalizedUri uri
   agdaProject <- findAgdaProject uri
-  lift $ LSP.sendNotification LSP.SMethod_WindowLogMessage $ LSP.LogMessageParams LSP.MessageType_Info $ Text.pack $ prettyShow agdaProject
+  Log.infoP $ "For URI " <> pretty uri <> ", resolved project " <> pretty agdaProject
 
   let notificationHandler = runWithAgdaProjectT agdaProject . handlerWithAgdaLib normUri
   let handler = tryTC $ notificationHandler notification
 
-  let onErr = \err -> runWithAgdaProjectT agdaProject $ do
-        message <- Text.pack . prettyShow <$> TCM.liftTCM (TCM.prettyTCM err)
-        lift $ LSP.sendNotification LSP.SMethod_WindowShowMessage $ LSP.ShowMessageParams LSP.MessageType_Error message
-        lift $ LSP.sendNotification LSP.SMethod_WindowLogMessage $ LSP.LogMessageParams LSP.MessageType_Error message
+  let onErr = \err -> runWithAgdaProjectT agdaProject $ Log.errorTCM err
 
   fromRightM onErr handler
 

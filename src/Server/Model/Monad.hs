@@ -5,6 +5,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeSynonymInstances #-}
@@ -29,12 +30,11 @@ import Agda.TypeChecking.Monad (HasOptions (..), MonadTCEnv (..), MonadTCM (..),
 import qualified Agda.TypeChecking.Monad as TCM
 import Agda.Utils.IORef (modifyIORef', readIORef, writeIORef)
 import Agda.Utils.Lens (Lens', locally, over, view, (<&>), (^.))
-import Agda.Utils.Monad (and2M, bracket_, ifNotM)
+import Agda.Utils.Monad (MonadTrans (lift), and2M, bracket_, ifNotM)
 import Agda.Utils.Null (null)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Reader (MonadReader (local), ReaderT (runReaderT), ask)
-import Control.Monad.Trans (MonadTrans)
-import Monad (ServerM)
+import Monad (MonadMockLsp, ServerM)
 import Server.Model.AgdaFile (AgdaFile)
 import Server.Model.AgdaLib (AgdaLib)
 import Server.Model.AgdaProject (AgdaProject)
@@ -42,6 +42,9 @@ import qualified Server.Model.AgdaProject as AgdaProject
 import Prelude hiding (null)
 #if MIN_VERSION_Agda(2,8,0)
 import Agda.Utils.FileId (File, getIdFile)
+import Language.LSP.Server (MonadLsp, getLspEnv)
+import Options (Config)
+import Control.Monad.IO.Unlift (MonadUnliftIO)
 #endif
 
 --------------------------------------------------------------------------------
@@ -197,7 +200,7 @@ defaultIdFromFile = TCM.stateTCLens TCM.stFileDict . TCM.registerFileIdWithBuilt
 --------------------------------------------------------------------------------
 
 newtype WithAgdaProjectT m a = WithAgdaProjectT {unWithAgdaProjectT :: ReaderT AgdaProject m a}
-  deriving (Functor, Applicative, Monad, MonadIO, MonadTrans)
+  deriving (Functor, Applicative, Monad, MonadIO, MonadTrans, MonadUnliftIO)
 
 runWithAgdaProjectT :: AgdaProject -> WithAgdaProjectT m a -> m a
 runWithAgdaProjectT agdaProject = flip runReaderT agdaProject . unWithAgdaProjectT
@@ -207,6 +210,8 @@ type WithAgdaProjectM = WithAgdaProjectT ServerM
 instance (MonadIO m) => MonadAgdaProject (WithAgdaProjectT m) where
   askAgdaProject = WithAgdaProjectT ask
   localAgdaProject f = WithAgdaProjectT . local f . unWithAgdaProjectT
+
+instance (MonadMockLsp m) => MonadMockLsp (WithAgdaProjectT m)
 
 instance (MonadIO m) => MonadTCEnv (WithAgdaProjectT m) where
   askTC = defaultAskTC
@@ -239,6 +244,9 @@ instance (MonadIO m) => TCM.MonadFileId (WithAgdaProjectT m) where
   idFromFile = defaultIdFromFile
 #endif
 
+instance (MonadLsp Config m) => MonadLsp Config (WithAgdaProjectT m) where
+  getLspEnv = lift getLspEnv
+
 --------------------------------------------------------------------------------
 
 data WithAgdaFileEnv = WithAgdaFileEnv
@@ -270,6 +278,8 @@ instance (MonadIO m) => MonadAgdaProject (WithAgdaFileT m) where
 instance (MonadIO m) => MonadAgdaFile (WithAgdaFileT m) where
   askAgdaFile = WithAgdaFileT $ view withAgdaFileEnvAgdaFile
   localAgdaFile f = WithAgdaFileT . locally withAgdaFileEnvAgdaFile f . unWithAgdaFileT
+
+instance (MonadMockLsp m) => MonadMockLsp (WithAgdaFileT m)
 
 instance (MonadIO m) => MonadTCEnv (WithAgdaFileT m) where
   askTC = defaultAskTC

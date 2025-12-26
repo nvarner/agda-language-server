@@ -88,6 +88,7 @@ library
       Server.Handler
       Server.Handler.TextDocument.DocumentSymbol
       Server.Handler.TextDocument.FileManagement
+      Server.Log
       Server.Model
       Server.Model.AgdaFile
       Server.Model.AgdaLib
@@ -114,6 +115,7 @@ library
     , aeson
     , base >=4.7 && <5
     , bytestring
+    , co-log-core
     , containers
     , directory
     , filepath
@@ -128,6 +130,7 @@ library
     , stm
     , strict
     , text
+    , unliftio-core
   default-language: Haskell2010
   if flag(Agda-2-6-4)
     build-depends:
@@ -162,6 +165,7 @@ executable als
     , agda-language-server
     , base >=4.7 && <5
     , bytestring
+    , co-log-core
     , containers
     , directory
     , filepath
@@ -176,6 +180,7 @@ executable als
     , stm
     , strict
     , text
+    , unliftio-core
   default-language: Haskell2010
   if flag(Agda-2-6-4)
     build-depends:
@@ -252,6 +257,7 @@ test-suite als-test
       Server.Handler
       Server.Handler.TextDocument.DocumentSymbol
       Server.Handler.TextDocument.FileManagement
+      Server.Log
       Server.Model
       Server.Model.AgdaFile
       Server.Model.AgdaLib
@@ -278,6 +284,7 @@ test-suite als-test
     , aeson
     , base >=4.7 && <5
     , bytestring
+    , co-log-core
     , containers
     , directory
     , filepath
@@ -297,6 +304,7 @@ test-suite als-test
     , tasty-hunit
     , tasty-quickcheck
     , text
+    , unliftio-core
   default-language: Haskell2010
   if flag(Agda-2-6-4)
     build-depends:

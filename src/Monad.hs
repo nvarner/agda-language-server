@@ -1,3 +1,4 @@
+{-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
@@ -46,6 +47,7 @@ data Env = Env
   { envOptions :: Options,
     envDevMode :: Bool,
     envConfig :: Config,
+    envMockLsp :: Bool,
     envLogChan :: Chan Text,
     envCommandController :: CommandController,
     envResponseChan :: Chan Response,
@@ -59,6 +61,7 @@ createInitEnv :: (MonadIO m, MonadLsp Config m) => Options -> m Env
 createInitEnv options =
   Env options (isJust (optViaTCP options))
     <$> getConfig
+    <*> (pure False)
     <*> liftIO newChan
     <*> liftIO CommandController.new
     <*> liftIO newChan
@@ -148,3 +151,22 @@ signalCommandFinish = do
 -- | Sends a Response to the client via "envResponseChan"
 sendResponse :: (Monad m, MonadIO m) => Env -> Response -> TCMT m ()
 sendResponse env response = liftIO $ writeChan (envResponseChan env) response
+
+--------------------------------------------------------------------------------
+
+class (Monad m) => MonadMockLsp m where
+  -- | When true, we're mocking LspM to the best of our ability. Usually, this
+  -- should be false.
+  --
+  -- Used for testing purposes. It's hard to run @LspT@ without invoking the
+  -- @lsp@ library, which means spinning up a server and no direct control, so
+  -- in unit tests we hack around this with some @undefined@. To prevent this
+  -- from being used, we can't access @LspT@ functionality, most notably
+  -- logging. So, for example, this tells the logging implementation not to
+  -- use LSP features.
+  shouldMockLsp :: m Bool
+  default shouldMockLsp :: (MonadTrans t, MonadMockLsp n, m ~ t n) => m Bool
+  shouldMockLsp = lift shouldMockLsp
+
+instance MonadMockLsp ServerM where
+  shouldMockLsp = asks envMockLsp

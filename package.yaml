@@ -61,6 +61,7 @@ dependencies:
   - Agda
   - aeson
   - bytestring
+  - co-log-core
   - containers
   - directory
   - filepath
@@ -75,6 +76,7 @@ dependencies:
   - text
   - process
   - prettyprinter
+  - unliftio-core
 
 default-extensions:
 - LambdaCase

@@ -33,10 +33,8 @@ import qualified Agda.TypeChecking.Monad as TCM
 import Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.Utils.FileName (absolute)
 import Agda.Utils.IORef (newIORef)
-import Agda.Utils.Lens (set)
 import Control.Concurrent (newChan)
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Data.Function ((&))
 import qualified Data.Map as Map
 import Data.Text (Text)
 import Indexer (indexFile, usingSrcAsCurrent)
@@ -50,14 +48,13 @@ import qualified Server.CommandController as CommandController
 import qualified Server.Filesystem as FS
 import Server.Model (Model (Model))
 import Server.Model.AgdaFile (AgdaFile, emptyAgdaFile)
-import Server.Model.AgdaLib (agdaLibIncludes, AgdaLib (AgdaLib))
+import Server.Model.AgdaLib (AgdaLib (AgdaLib))
 import qualified Server.Model.AgdaProject as AgdaProject
 import Server.Model.Monad (MonadAgdaProject, runWithAgdaProjectT)
 import qualified Server.ResponseController as ResponseController
 import qualified Server.VfsIndex as VfsIndex
 import System.FilePath (takeBaseName)
 import Agda.Utils.Null (empty)
-import Server.Filesystem (FileId(LocalFilePath))
 
 data AgdaFileDetails = AgdaFileDetails
   { fileName :: !String,
@@ -187,7 +184,7 @@ getModel = do
 
 getServerEnv :: (MonadIO m) => Model -> m Env
 getServerEnv model =
-  Env defaultOptions True initConfig
+  Env defaultOptions True initConfig True
     <$> liftIO newChan
     <*> liftIO CommandController.new
     <*> liftIO newChan

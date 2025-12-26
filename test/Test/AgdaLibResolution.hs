@@ -6,13 +6,17 @@ module Test.AgdaLibResolution (tests) where
 import Agda.Interaction.Library (parseLibName)
 #endif
 import Agda.Utils.Lens ((^.))
+import Agda.Utils.Maybe (fromJust)
 import Control.Monad.IO.Class (liftIO)
+import Data.Function ((&))
 import Indexer (indexFile)
 import qualified Language.LSP.Server as LSP
 import Monad (runServerT)
 import Server.AgdaProjectResolver (findAgdaProject)
+import qualified Server.AgdaProjectResolver as AgdaProjectResolver
 import qualified Server.Filesystem as FS
-import Server.Model.AgdaLib (AgdaLibOrigin (FromFile), agdaLibIncludes, agdaLibName)
+import Server.Model.AgdaLib (agdaLibIncludes, agdaLibName)
+import qualified Server.Model.AgdaProject as AgdaProject
 import Server.Model.Monad (runWithAgdaProjectT)
 import System.Directory (makeAbsolute)
 import Test.Tasty (TestTree, testGroup)
@@ -29,25 +33,20 @@ tests :: TestTree
 tests =
   testGroup
     "Agda lib resolution"
-    [ --        testCase "Explicit" $ do
-      --         model <- TestData.getModel
+    [ testCase "Explicit" $ do
+        model <- TestData.getModel
 
-      --         absConstPath <- makeAbsolute constPath
-      --         absAgdaLibPath <- makeAbsolute agdaLibPath
-      --         absSrcPath <- makeAbsolute srcPath
+        absConstPath <- makeAbsolute constPath
+        absAgdaLibPath <- makeAbsolute agdaLibPath
+        absSrcPath <- makeAbsolute srcPath
 
-      --         LSP.runLspT undefined $ do
-      --           env <- TestData.getServerEnv model
-      --           runServerT env $ do
-      --             lib <- findAgdaLib absConstPath
-
-      -- #if MIN_VERSION_Agda(2,8,0)
-      --             liftIO $ lib ^. agdaLibName @?= parseLibName "no-deps"
-      -- #else
-      --             liftIO $ lib ^. agdaLibName @?= "no-deps"
-      -- #endif
-      --             liftIO $ lib ^. agdaLibOrigin @?= FromFile (FS.LocalFilePath absAgdaLibPath)
-      --             liftIO $ lib ^. agdaLibIncludes @?= [FS.LocalFilePath absSrcPath],
+        LSP.runLspT undefined $ do
+          env <- TestData.getServerEnv model
+          runServerT env $ do
+            project <- AgdaProjectResolver.findAgdaProject absConstPath
+            let lib = project ^. AgdaProject.agdaLib & fromJust
+            liftIO $ lib ^. agdaLibName @?= parseLibName "no-deps"
+            liftIO $ lib ^. agdaLibIncludes @?= [FS.LocalFilePath absSrcPath],
       testCase "Module without imports in lib without dependencies" $ do
         model <- TestData.getModel
 

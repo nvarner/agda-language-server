@@ -5,9 +5,13 @@ import Agda.Utils.Lens ((^.))
 import qualified Data.Text as Text
 import qualified Language.LSP.Protocol.Lens as LSP
 import qualified Language.LSP.Protocol.Types as LSP
+import qualified Language.LSP.Protocol.Types.Uri.More as LSP
 
 instance Pretty LSP.Uri where
   pretty = text . Text.unpack . LSP.getUri
+
+instance Pretty LSP.NormalizedUri where
+  pretty = text . Text.unpack . LSP.getNormalizedUri
 
 instance Pretty LSP.Position where
   pretty pos = pshow (pos ^. LSP.line + 1) <> text ":" <> pshow (pos ^. LSP.character + 1)

@@ -5,8 +5,8 @@ module Server.AgdaLibResolver
   )
 where
 
-import Agda.Interaction.Library (AgdaLibFile, LibName)
-import Agda.Interaction.Library.Base (libName)
+import Agda.Interaction.Library (AgdaLibFile, LibName, findLib')
+import Agda.Interaction.Library.Base (libName, libNameForCurrentDir)
 import Agda.Interaction.Library.More (defaultLibraryFileIds)
 import Agda.Interaction.Library.Parse.More (parseLibFile, runP)
 import Agda.Setup (getAgdaAppDir)
@@ -15,17 +15,17 @@ import Agda.Utils.Lens ((^.))
 import Agda.Utils.List (nubOn)
 import Agda.Utils.Maybe (caseMaybeM, listToMaybe)
 import Agda.Utils.Monad (mapMaybeM)
-import Agda.Utils.Singleton (Singleton (singleton))
+import Agda.Utils.Singleton (singleton)
 import Control.Monad.IO.Class (liftIO)
-import Data.Foldable (Foldable (toList), find)
+import Data.Foldable (toList)
 import Monad (ServerM, askFilesystemProvider, askModel, modifyModel)
-import Server.Filesystem (FileId (LocalFilePath))
 import qualified Server.Filesystem as FS
 import qualified Server.Model as Model
 import Server.Model.AgdaLib (AgdaLib, agdaLibFromFile, agdaLibName)
 import Server.Model.InstalledLibsFile (InstalledLibsFile)
 import qualified Server.Model.InstalledLibsFile as InstalledLibsFile
 
+-- | Get an 'AgdaLib' given the 'FS.FileId' of its @.agda-lib@ file
 byFileId :: FS.FileId -> ServerM (Maybe AgdaLib)
 byFileId agdaLibFileId = do
   model <- askModel
@@ -41,8 +41,9 @@ byFileId agdaLibFileId = do
           modifyModel $ Model.withAgdaLib lib
           return $ Just lib
 
+-- | Get an 'AgdaLib' given its name and the list of installed libraries
 byLibName :: LibName -> [AgdaLib] -> Maybe AgdaLib
-byLibName libName = find (\lib -> libName == lib ^. agdaLibName)
+byLibName libName = listToMaybe . findLib' (^. agdaLibName) libName
 
 fileIdToAgdaLibFile :: (FS.Provider p) => p -> FS.FileId -> ServerM (Maybe AgdaLibFile)
 fileIdToAgdaLibFile provider fileId = do
@@ -54,9 +55,8 @@ fileIdToAgdaLibFile provider fileId = do
       return $ maybeRight result
 
 installedLibraries :: Maybe FS.FileId -> ServerM [AgdaLib]
-installedLibraries overrideLibFile' = do
+installedLibraries overrideLibFile = do
   provider <- askFilesystemProvider
-  let overrideLibFile = FS.toFileId <$> overrideLibFile'
   libsFile <- librariesFile provider overrideLibFile
   let entries = maybe [] (^. InstalledLibsFile.entries) libsFile
   let entries' = nubOn (^. InstalledLibsFile.entryLibFileId) entries
@@ -66,8 +66,16 @@ installedLibraries overrideLibFile' = do
 
 librariesFile :: (FS.MonadFilesystem m, FS.Provider p) => p -> Maybe FS.FileId -> m (Maybe InstalledLibsFile)
 librariesFile provider overrideLibFile = do
-  agdaDir <- liftIO $ LocalFilePath <$> getAgdaAppDir
+  agdaDir <- liftIO $ FS.LocalFilePath <$> getAgdaAppDir
   defaults <- defaultLibraryFileIds agdaDir
   let candidates = toList $ maybe defaults singleton overrideLibFile
   libsFiles <- mapMaybeM (InstalledLibsFile.fromFileId provider) candidates
   return $ listToMaybe libsFiles
+
+-- | Determine the libraries we depend on when there is no .agda-lib
+-- TODO: read from default file
+defaultLibNames :: (FS.MonadFilesystem m, FS.Provider p) => p -> Bool -> m [LibName]
+defaultLibNames provider useDefaultsFile =
+  if useDefaultsFile
+    then return [libNameForCurrentDir]
+    else return []
