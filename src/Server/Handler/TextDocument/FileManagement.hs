@@ -18,7 +18,6 @@ import Monad (ServerM, modifyModel, modifyVfsIndex)
 import qualified Server.Log as Log
 import qualified Server.Model as Model
 import Server.Model.Handler (notificationHandlerWithAgdaLib, takeOverNotificationHandlerWithAgdaLib)
-import qualified Server.VfsIndex as VFSIndex
 import qualified Server.VfsIndex as VfsIndex
 
 didOpenHandler :: LSP.Handlers ServerM
@@ -42,7 +41,7 @@ didCloseHandler :: LSP.Handlers ServerM
 didCloseHandler = LSP.notificationHandler LSP.SMethod_TextDocumentDidClose $ \notification -> do
   let uri = notification ^. LSP.params . LSP.textDocument . LSP.uri
   Log.infoP $ "Closing URI" <+> pretty uri
-  modifyVfsIndex $ VFSIndex.onClose uri
+  modifyVfsIndex $ VfsIndex.onClose uri
   modifyModel $ Model.deleteAgdaFile $ LSP.toNormalizedUri uri
 
 didSaveHandler :: LSP.Handlers ServerM
