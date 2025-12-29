@@ -64,11 +64,11 @@ defaultLibNames o =
 dependencyLibs :: CommandLineOptions -> WithAgdaProjectM [AgdaLib]
 dependencyLibs o = do
   directDependencies <- directDependencyLibNames o
-  Log.infoP $ "Direct dependencies: " <> pretty directDependencies
+  Log.traceP $ "Direct dependencies: " <> pretty directDependencies
   installed <- lift $ AgdaLibResolver.installedLibraries (FS.LocalFilePath <$> optOverrideLibrariesFile o)
-  Log.infoP $ "Installed libraries: " <> pretty installed
+  Log.traceP $ "Installed libraries: " <> pretty installed
   let libs = resolveDeps installed directDependencies [] []
-  Log.infoP $ "Resolved dependencies: " <> pretty libs
+  Log.traceP $ "Resolved dependencies: " <> pretty libs
   case libs of
     Nothing -> return [] -- TODO: very wrong, do real error handling
     Just libs -> do

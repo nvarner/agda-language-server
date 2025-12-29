@@ -24,12 +24,13 @@ import qualified Server.VfsIndex as VfsIndex
 didOpenHandler :: LSP.Handlers ServerM
 didOpenHandler = LSP.notificationHandler LSP.SMethod_TextDocumentDidOpen $ \notification -> do
   let uri = notification ^. LSP.params . LSP.textDocument . LSP.uri
-  Log.infoP $ "Opening URI" <+> pretty uri
+  Log.infoP $ "Opening" <+> pretty uri
   modifyVfsIndex $ VfsIndex.onOpen uri
   takeOverNotificationHandlerWithAgdaLib notification $ \uri notification -> do
     vfile <- lift $ LSP.getVirtualFile uri
     case vfile of
-      Nothing -> return ()
+      Nothing -> do
+        Log.warnT "Failed to open: could not find file"
       Just vfile -> do
         vSourceFile <- vSrcFromUri uri vfile
         src <- parseVSource vSourceFile

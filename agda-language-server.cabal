@@ -57,7 +57,6 @@ library
       Agda.Parser
       Agda.Position
       Agda.Syntax.Abstract.More
-      Agda.TypeChecking.Monad.Options.More
       Control.Concurrent.SizedChan
       Indexer
       Indexer.Indexer
@@ -226,7 +225,6 @@ test-suite als-test
       Agda.Parser
       Agda.Position
       Agda.Syntax.Abstract.More
-      Agda.TypeChecking.Monad.Options.More
       Control.Concurrent.SizedChan
       Indexer
       Indexer.Indexer

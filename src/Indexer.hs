@@ -20,9 +20,11 @@ import qualified Data.Map as Map
 import Indexer.Indexer (indexAst)
 import Indexer.Monad (execIndexerM)
 import Indexer.Postprocess (postprocess)
+import qualified Server.Log as Log
 import Server.Model.AgdaFile (AgdaFile)
 import Server.Model.Monad (WithAgdaProjectM)
 import Indexer.Prepare (setCommandLineOptionsByLib)
+import Agda.Syntax.Common.Pretty (pretty)
 
 usingSrcAsCurrent :: Imp.Source -> WithAgdaProjectM a -> WithAgdaProjectM a
 usingSrcAsCurrent src x = do
@@ -59,9 +61,9 @@ withAstFor src f = usingSrcAsCurrent src $ do
   ast <- TCM.liftTCM $ toAbstract topLevel
   f ast
 
-indexFile ::
-  Imp.Source ->
-  WithAgdaProjectM AgdaFile
-indexFile src = withAstFor src $ \ast -> execIndexerM $ do
-  indexAst ast
-  postprocess
+indexFile :: Imp.Source -> WithAgdaProjectM AgdaFile
+indexFile src = do
+  Log.infoP $ "Indexing " <> pretty src
+  withAstFor src $ \ast -> execIndexerM $ do
+    indexAst ast
+    postprocess

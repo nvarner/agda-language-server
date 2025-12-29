@@ -24,6 +24,12 @@ import Switchboard (agdaCustomMethod)
 import qualified Switchboard
 import Server.Handler.TextDocument.DocumentSymbol (documentSymbolHandler)
 import Server.Handler.TextDocument.FileManagement (didOpenHandler, didCloseHandler, didSaveHandler)
+import System.IO (stdout, stdin)
+import Colog.Core (LogAction, WithSeverity)
+import qualified Colog.Core as L
+import Prettyprinter (viaShow, pretty)
+import Language.LSP.Logging (defaultClientLogger)
+import qualified Data.Text as T
 
 #if defined(wasm32_HOST_ARCH)
 import Agda.Utils.IO (catchIO)
@@ -51,7 +57,7 @@ run options = do
       liftIO $ setFdOption stdInput NonBlockingRead True
         `catchIO` (\ (e :: IOError) -> hPutStrLn stderr $ "Failed to enable nonblocking on stdin: " ++ (show e) ++ "\nThe WASM module might not behave correctly.")
 #endif
-      runServer (serverDefn options)
+      runServerWithHandles defaultIOLogger defaultLspLogger stdin stdout (serverDefn options)
   where
     serverDefn :: Options -> ServerDefinition Config
     serverDefn options =
@@ -75,6 +81,16 @@ run options = do
               },
           options = lspOptions
         }
+
+-- Unexported by lsp library
+defaultIOLogger :: LogAction IO (WithSeverity LspServerLog)
+defaultIOLogger = L.cmap (show . prettyMsg) L.logStringStderr
+ where
+  prettyMsg l = "[" <> viaShow (L.getSeverity l) <> "] " <> pretty (L.getMsg l)
+
+-- Modified from lsp library to remove stderr
+defaultLspLogger :: LogAction (LspM config) (WithSeverity LspServerLog)
+defaultLspLogger = L.cmap (fmap (T.pack . show . pretty)) defaultClientLogger
 
 lspOptions :: LSP.Options
 lspOptions = LSP.defaultOptions {optTextDocumentSync = Just syncOptions}

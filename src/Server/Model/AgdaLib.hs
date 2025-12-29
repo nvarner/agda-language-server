@@ -39,6 +39,10 @@ instance Pretty AgdaLib where
       <+> pshow (agdaLib ^. agdaLibFile)
       <+> text "includes:"
       <+> pretty (agdaLib ^. agdaLibIncludes)
+      <+> text "options:"
+      <+> pshow (agdaLib ^. agdaLibOptionsPragma)
+      <+> text "dependencies:"
+      <+> pretty (agdaLib ^. agdaLibDependencies)
 
 agdaLibName :: Lens' AgdaLib LibName
 agdaLibName f a = f (_agdaLibName a) <&> \x -> a {_agdaLibName = x}
@@ -82,4 +86,10 @@ agdaLibToFile relativeToUri agdaLib =
       uri = FS.fileIdToUri $ agdaLib ^. agdaLibFile
       above = LSP.uriHeightAbove uri relativeToUri
       filePath = LSP.uriToPossiblyInvalidFilePath uri
-   in AgdaLibFile (agdaLib ^. agdaLibName) filePath above includePaths [] (agdaLib ^. agdaLibOptionsPragma)
+   in AgdaLibFile
+        (agdaLib ^. agdaLibName)
+        filePath
+        above
+        includePaths
+        (agdaLib ^. agdaLibDependencies)
+        (agdaLib ^. agdaLibOptionsPragma)
