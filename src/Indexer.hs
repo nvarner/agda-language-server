@@ -34,6 +34,8 @@ usingSrcAsCurrent src x = do
     persistentOptions <- TCM.stPersistentOptions . TCM.stPersistentState <$> TCM.getTC
     setCommandLineOptionsByLib persistentOptions
 
+  TCM.liftTCM $ Imp.setOptionsFromSourcePragmas True src
+
 #if MIN_VERSION_Agda(2,8,0)
   TCM.modifyTCLens TCM.stModuleToSourceId $ Map.insert (Imp.srcModuleName src) (Imp.srcOrigin src)
   TCM.localTC (\e -> e {TCM.envCurrentPath = Just (TCM.srcFileId $ Imp.srcOrigin src)}) x
