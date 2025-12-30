@@ -25,12 +25,17 @@ import Server.Model.AgdaFile (AgdaFile)
 import Server.Model.Monad (WithAgdaProjectM)
 import Indexer.Prepare (setCommandLineOptionsByLib)
 import Agda.Syntax.Common.Pretty (pretty)
+import Agda.Interaction.Options (defaultOptions)
 
 usingSrcAsCurrent :: Imp.Source -> WithAgdaProjectM a -> WithAgdaProjectM a
 usingSrcAsCurrent src x = do
   TCM.liftTCM TCM.resetState
 
+  setCommandLineOptionsByLib defaultOptions
+
   TCM.liftTCM $ Imp.setOptionsFromSourcePragmas True src
+
+  TCM.liftTCM Imp.importPrimitiveModules
 
   TCM.setCurrentRange (C.modPragmas . Imp.srcModule $ src) $ do
     persistentOptions <- TCM.stPersistentOptions . TCM.stPersistentState <$> TCM.getTC
