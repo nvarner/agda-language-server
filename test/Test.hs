@@ -14,6 +14,7 @@ import qualified Test.ModelMonad as ModelMonad
 import qualified Test.Uri as URI
 import qualified Test.Indexer as Indexer
 import qualified Test.AgdaLibResolution as AgdaLibResolution
+import qualified Test.Integration.Test as Integration
 
 -- Define the custom option
 newtype AlsPathOption = AlsPathOption FilePath
@@ -43,7 +44,8 @@ tests = do
         Model.tests,
         ModelMonad.tests,
         AgdaLibResolution.tests,
-        indexerTests
+        indexerTests,
+        Integration.tests alsPath
 #if defined(wasm32_HOST_ARCH)
       , WASM.tests alsPath
 #endif

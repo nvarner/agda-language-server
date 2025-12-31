@@ -208,6 +208,8 @@ test-suite als-test
       Test.Indexer.Invariants.NoOverlap
       Test.Indexer.NoAnonFunSymbol
       Test.Indexer.Reload
+      Test.Integration.LibraryDependencies.Test
+      Test.Integration.Test
       Test.LSP
       Test.Model
       Test.ModelMonad
